@@ -5,7 +5,7 @@ A Firefox extension for user to track their cursor movement and annotate segment
 ### Background
 The name for this extension comes from a stray idea from the fall for a theory class assignment to make something that responds to the collection and accumulation of everyday (perhaps domestic) data. Reflecting on various universities’ use of student ID swipes to surveil student activity, I sketched out a robotic arm-based drawing of my location across campus. 
 
-![Screenshot of a presentation slide with sketches in black ink of two interventions into everyday data collection.](media/FL24Entanglement.png)
+![Screenshot of a presentation slide with sketches in black ink of two interventions into everyday data collection.](Media/FL24Entanglement.png)
 
 “Your Biggest Fan” has returned as a cursor tracker that’s a side quest as I develop a CAPTCHA Log to help me better reflect on my daily encounters with CAPTCHAs. The extension is Firefox based for now to respect my personal browsing habits.
 
