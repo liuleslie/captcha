@@ -2,6 +2,8 @@
 
 A Firefox extension for a user to track their cursor movement and annotate segments comprising CAPTCHA work.
 
+`To add:` it’s not about “humanness” score, more about data collection. How this supports the Log.
+
 ### Background
 The name for this extension comes from a stray idea from Fall 2024 for a theory class assignment to make something that responds to the collection and accumulation of everyday (perhaps domestic) data. Reflecting on various universities’ use of student ID swipes to surveil student activity, I sketched out a robotic arm-based drawing of my location across campus. 
 
