@@ -23,6 +23,12 @@ I’ve long been a fan of Ochshorn’s work on compression and video transcripti
 ![](Media/Still-1.png)
 
 
+
+### Acknowledgements
+Thank you to Golan and Daragh for your generous &lt;a&gt; energy; Huang, McDonald, Ochshorn & Sivan for your work; Claude Code (CC), W3Schools, Mozilla and Chrome’s developer docs writers for technical and conceptual support and debugging.
+
+My CC use in this project is heavier than my usual preferences (setting up the text extrusion model to serve as a programming coach and approxiamte guide whilst writing most of the code manually myself). This experiment saw me using extant web resources to get a high-level picture, then using CC to make something/anything, and reviewing the code with both entities nearby to understand how the program has changed and what blockages remain.
+
 ### Continued work
 
 
