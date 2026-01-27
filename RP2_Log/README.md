@@ -2,7 +2,8 @@
 
 A Firefox extension to a build an archive of contextual data→information about CAPTCHAs encountered during everyday browsing. The extension focuses on hCaptcha, Arkose MatchKey, and Arkose funCaptcha for their (as personally observed) multi-step, increasingly cognitively burdensome user experience. The extension conducts lightweight logging for other (major) CAPTCHA schemes. 
 
-(Background omitted for now. Diarying.)
+## Background
+
 
 ## Bibliography
 Ben Pettis, _[HTML Search and Record](https://github.com/bpettis/html-search-and-record)_ (2021)
