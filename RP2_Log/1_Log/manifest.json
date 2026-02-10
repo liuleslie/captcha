@@ -1,0 +1,32 @@
+{
+  "manifest_version": 2,
+  "name": "CAPTCHA Logger v0",
+  "version": "0.1",
+  "description": "Minimal CAPTCHA data collector: cursor track, images, DOM position",
+
+  "permissions": [
+    "activeTab",
+    "<all_urls>",
+    "webRequest",
+    "webRequestBlocking",
+    "downloads"
+  ],
+
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+
+  "browser_action": {
+    "default_title": "Start CAPTCHA Recording"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["main.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
+}
