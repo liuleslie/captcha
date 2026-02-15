@@ -22,7 +22,7 @@ CAPTCHAs are an example of a human interactive proof (HIP) that grants selective
 
 As a HIP, CAPTCHAs are everyday artifacts that remain an evergreen theme for meditations on how we as (presumably) human users are evaluated. See Paperhat Projects’ [CaptchaWare](https://paperhatprojects.itch.io/captchaware), Neal Agarwal’s [“I’m Not a Robot”](https://neal.fun/not-a-robot/), and [Fun With Computer Vision](https://www.funwithcomputervision.com/)’s [cursed CAPTCHA series](https://x.com/measure_plan/status/19523700746369966300) as examples of such provocations. 
 
-While evaluation methods is unclear (colloquial accounts of user/browser telemetry and cookies aside), I’d argue that this form of user-side data collection is helpful to make encounters with, and data labeling of, CAPTCHAs more concrete and manipulable for personal reflection.
+While evaluation methods are unclear (colloquial accounts of user/browser telemetry and cookies aside), I’d argue that this form of user-side data collection is helpful to make encounters with, and data labeling of, CAPTCHAs more concrete and manipulable for personal reflection.
 
 The original goal of developing this Log is to focus on hCaptcha, Arkose MatchKey, and Arkose funCaptcha for their (as personally observed) multi-step, increasingly cognitively burdensome user experience. Given the peculiar development process of this extension, it has been primarily been tested on Google reCAPTCHA for the scheme’s breadth/coverage. Support for these three schemes is ongoing. 
 
