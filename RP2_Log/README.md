@@ -20,7 +20,7 @@ It exports this data upon either the active tab’s closing or a backup timed in
 ### Why download CAPTCHA media?
 CAPTCHAs are an example of a human interactive proof (HIP) that grants selective access to services based on the user’s input. From the academic literature that led to this web security feature, this input is valuable for its utility as training data for machine learning systems.
 
-As a HIP, CAPTCHAs are everyday artifacts that remain an evergreen theme for meditations on how we as (presumably) human users are evaluated. See Paperhat Projects’ [CaptchaWare](https://paperhatprojects.itch.io/captchaware), Neal Agarwal’s [“I’m Not a Robot”](https://neal.fun/not-a-robot/), and [Fun With Computer Vision](https://www.funwithcomputervision.com/)’s [cursed CAPTCHA series](https://x.com/measure_plan/status/1952370074636996630?s=20) as examples of such provocations. 
+As a HIP, CAPTCHAs are everyday artifacts that remain an evergreen theme for meditations on how we as (presumably) human users are evaluated. See Paperhat Projects’ [CaptchaWare](https://paperhatprojects.itch.io/captchaware), Neal Agarwal’s [“I’m Not a Robot”](https://neal.fun/not-a-robot/), and [Fun With Computer Vision](https://www.funwithcomputervision.com/)’s [cursed CAPTCHA series](https://x.com/measure_plan/status/19523700746369966300) as examples of such provocations. 
 
 The original goal of developing this Log is to focus on hCaptcha, Arkose MatchKey, and Arkose funCaptcha for their (as personally observed) multi-step, increasingly cognitively burdensome user experience. Given the peculiar development process of this extension, it has been intermittently tested on Google reCAPTCHA for breadth/coverage. Support for these three schemes is ongoing. 
 
