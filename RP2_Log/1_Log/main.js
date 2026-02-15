@@ -23,7 +23,7 @@ const frameDepth = (() => {
 // State
 // ============================================
 
-let isArmed = false;
+let isActivated = false;
 let isRecording = false;
 let recordingStartTime = 0;
 let cursorPoints = [];
@@ -239,7 +239,7 @@ function resetRecording() {
   // Tell background to clear aggregated cursor data for this tab
   browser.runtime.sendMessage({ action: "clear-cursor-data" }).catch(() => {});
 
-  // Stay armed, wait for next CAPTCHA
+  // Stay activated, wait for next CAPTCHA
   if (isTopFrame) {
     console.log("[CAPLOG] Reset complete. Waiting for next CAPTCHA...");
   }
@@ -713,7 +713,7 @@ function startCaptchaObserver() {
     const hasCaptcha = detectCaptchaElements();
 
     // CAPTCHA appeared - start recording (all frames start)
-    if (!hadCaptcha && hasCaptcha && isArmed && !isRecording) {
+    if (!hadCaptcha && hasCaptcha && isActivated && !isRecording) {
       if (isTopFrame) {
         console.log("[CAPLOG] ▶ CAPTCHA detected! Starting recording...");
       }
@@ -804,28 +804,36 @@ function stopRecording() {
     console.log(`[CAPLOG]   - Local cursor points: ${cursorPoints.length}`);
     console.log(`[CAPLOG]   - Rounds: ${roundCount}`);
   }
+
+  // Notify background (for badge clearing)
+  browser.runtime.sendMessage({
+    action: "recording-stopped",
+    frameId: frameId,
+    frameDepth: frameDepth,
+    isTopFrame: isTopFrame
+  }).catch(() => {});
 }
 
 // ============================================
-// Arming
+// Activation
 // ============================================
 
-function arm() {
-  if (isArmed) return;
-  isArmed = true;
+function activate() {
+  if (isActivated) return;
+  isActivated = true;
 
   startCaptchaObserver();
   detectCaptchaElements();
 
   browser.runtime.sendMessage({
-    action: "armed-state",
-    armed: true,
+    action: "activated-state",
+    activated: true,
     frameId: frameId,
     isTopFrame: isTopFrame
   });
 
   if (isTopFrame) {
-    console.log("[CAPLOG] ✓ Armed and monitoring for CAPTCHAs");
+    console.log("[CAPLOG] ✓ Activated and monitoring for CAPTCHAs");
     console.log("[CAPLOG]   Continuous mode: will auto-export when CAPTCHA completes");
   }
 
@@ -838,9 +846,9 @@ function arm() {
   }
 }
 
-function disarm() {
-  if (!isArmed) return;
-  isArmed = false;
+function deactivate() {
+  if (!isActivated) return;
+  isActivated = false;
 
   if (isRecording) {
     stopRecording();
@@ -848,22 +856,22 @@ function disarm() {
   stopCaptchaObserver();
 
   browser.runtime.sendMessage({
-    action: "armed-state",
-    armed: false,
+    action: "activated-state",
+    activated: false,
     frameId: frameId,
     isTopFrame: isTopFrame
   });
 
   if (isTopFrame) {
-    console.log("[CAPLOG] ✗ Disarmed");
+    console.log("[CAPLOG] ✗ Deactivated");
   }
 }
 
-function toggleArmed() {
-  if (isArmed) {
-    disarm();
+function toggleActivated() {
+  if (isActivated) {
+    deactivate();
   } else {
-    arm();
+    activate();
   }
 }
 
@@ -1053,7 +1061,7 @@ document.addEventListener("keydown", (event) => {
     if (isRecording) {
       console.log("[CAPLOG] Manual export triggered");
       exportSession().then(() => {
-        if (isArmed) resetRecording();
+        if (isActivated) resetRecording();
       });
     }
   }
@@ -1064,14 +1072,14 @@ document.addEventListener("keydown", (event) => {
 // ============================================
 
 browser.runtime.onMessage.addListener((message) => {
-  // Toggle arm message from background (toolbar click)
-  if (message.action === "toggle-arm") {
-    toggleArmed();
+  // Toggle activation message from background (toolbar click)
+  if (message.action === "toggle-activate") {
+    toggleActivated();
   }
 
   // Broadcast: start recording (from background when any frame detects CAPTCHA)
   if (message.action === "broadcast-start-recording") {
-    if (isArmed && !isRecording) {
+    if (isActivated && !isRecording) {
       startRecording();
     }
   }
@@ -1107,11 +1115,11 @@ browser.runtime.onMessage.addListener((message) => {
 // ============================================
 
 window.caplog = {
-  arm: arm,
-  disarm: disarm,
+  activate: activate,
+  deactivate: deactivate,
   export: exportSession,
   getData: () => ({
-    isArmed,
+    isActivated,
     isRecording,
     isTopFrame,
     frameId,
@@ -1130,18 +1138,18 @@ window.caplog = {
 };
 
 // ============================================
-// Session-Persistent Arming
+// Session-Persistent Activation
 // ============================================
 
-// On load, check if this tab should already be armed (survives page navigation)
-async function checkPersistedArmedState() {
+// On load, check if this tab should already be activated (survives page navigation)
+async function checkPersistedActivatedState() {
   try {
-    const response = await browser.runtime.sendMessage({ action: "get-armed-state" });
-    if (response.armed && !isArmed) {
+    const response = await browser.runtime.sendMessage({ action: "get-activated-state" });
+    if (response.activated && !isActivated) {
       if (isTopFrame) {
-        console.log("[CAPLOG] Restoring armed state from session...");
+        console.log("[CAPLOG] Restoring activated state from session...");
       }
-      arm();
+      activate();
     }
   } catch (e) {
     // Extension context not available (e.g., on privileged pages)
@@ -1151,7 +1159,7 @@ async function checkPersistedArmedState() {
 // Startup log
 if (isTopFrame) {
   console.log("[CAPLOG] Content script loaded (TOP FRAME)");
-  console.log("[CAPLOG] Click toolbar button to arm (continuous mode)");
+  console.log("[CAPLOG] Click toolbar button to activate (continuous mode)");
   console.log(`[CAPLOG] Export config: navigation=${EXPORT_CONFIG.onNavigation}, interval=${EXPORT_CONFIG.intervalEnabled ? EXPORT_CONFIG.intervalMs/1000 + 's' : 'off'}, inactivity=${EXPORT_CONFIG.onInactivity}`);
 
   // Setup navigation-based export (beforeunload handler)
@@ -1160,9 +1168,9 @@ if (isTopFrame) {
   console.log(`[CAPLOG] Content script loaded (child frame, depth=${frameDepth})`);
 }
 
-// Check for persisted armed state (runs after DOM is ready)
+// Check for persisted activated state (runs after DOM is ready)
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", checkPersistedArmedState);
+  document.addEventListener("DOMContentLoaded", checkPersistedActivatedState);
 } else {
-  checkPersistedArmedState();
+  checkPersistedActivatedState();
 }

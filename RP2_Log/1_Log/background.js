@@ -16,17 +16,38 @@ const MAX_CURSOR_POINTS = 50000;
 // Aggregated CAPTCHA elements per tab: { tabId: [{selector, rect, ...}] }
 let aggregatedCaptchaElements = {};
 
-// Armed tabs (tracks top frames only)
-let armedTabs = new Set();
+// Activated tabs (tracks top frames only)
+let activatedTabs = new Set();
+
+// ============================================
+// Consent Flow
+// ============================================
+
+browser.runtime.onInstalled.addListener((details) => {
+  if (details.reason === "install") {
+    browser.tabs.create({ url: browser.runtime.getURL("consent.html") });
+  }
+});
+
+function openConsentPage() {
+  browser.tabs.create({ url: browser.runtime.getURL("consent.html") });
+}
 
 // ============================================
 // Toolbar Button
 // ============================================
 
 browser.browserAction.onClicked.addListener(async (tab) => {
+  // Check consent before allowing activation
+  const store = await browser.storage.local.get("consented");
+  if (store.consented !== true) {
+    openConsentPage();
+    return;
+  }
+
   // First, try to send message (content script may already be loaded)
   try {
-    await browser.tabs.sendMessage(tab.id, { action: "toggle-arm" });
+    await browser.tabs.sendMessage(tab.id, { action: "toggle-activate" });
     return;
   } catch (err) {
     // Content script not loaded - inject it programmatically
@@ -44,9 +65,9 @@ browser.browserAction.onClicked.addListener(async (tab) => {
     // Wait for script to initialize
     await new Promise(r => setTimeout(r, 100));
 
-    // Now send the arm message
-    await browser.tabs.sendMessage(tab.id, { action: "toggle-arm" });
-    console.log("[CAPLOG] Content script injected and armed");
+    // Now send the activate message
+    await browser.tabs.sendMessage(tab.id, { action: "toggle-activate" });
+    console.log("[CAPLOG] Content script injected and activated");
   } catch (err) {
     console.warn("[CAPLOG] Failed to inject content script:", err.message);
     console.warn("[CAPLOG] Make sure you're on a regular web page (not about:, moz-extension:, etc.)");
@@ -60,18 +81,19 @@ browser.browserAction.onClicked.addListener(async (tab) => {
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const tabId = sender.tab?.id;
 
-  // Armed state tracking (from top frame)
-  if (message.action === "armed-state") {
-    if (message.armed && message.isTopFrame) {
-      armedTabs.add(tabId);
+  // Activated state tracking (from top frame)
+  if (message.action === "activated-state") {
+    if (message.activated && message.isTopFrame) {
+      activatedTabs.add(tabId);
       // Initialize/reset storage for this tab
       capturedImages[tabId] = [];
       aggregatedCursorPoints[tabId] = [];
       aggregatedCaptchaElements[tabId] = [];
-      console.log(`[CAPLOG] Tab ${tabId} armed`);
-    } else if (!message.armed && message.isTopFrame) {
-      armedTabs.delete(tabId);
-      console.log(`[CAPLOG] Tab ${tabId} disarmed`);
+      console.log(`[CAPLOG] Tab ${tabId} activated`);
+    } else if (!message.activated && message.isTopFrame) {
+      activatedTabs.delete(tabId);
+      browser.browserAction.setBadgeText({ text: "", tabId }).catch(() => {});
+      console.log(`[CAPLOG] Tab ${tabId} deactivated`);
     }
   }
 
@@ -175,6 +197,15 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Recording badge (top frame only)
+  if (message.action === "recording-started" && message.isTopFrame && tabId) {
+    browser.browserAction.setBadgeText({ text: "on", tabId });
+    browser.browserAction.setBadgeBackgroundColor({ color: "#DC2626", tabId });
+  }
+  if (message.action === "recording-stopped" && message.isTopFrame && tabId) {
+    browser.browserAction.setBadgeText({ text: "", tabId });
+  }
+
   // Content script requesting captured images
   if (message.action === "get-captured-images") {
     sendResponse({ images: capturedImages[tabId] || [] });
@@ -188,10 +219,10 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // Content script asking if it should be armed (for session persistence)
-  if (message.action === "get-armed-state") {
-    const isArmed = armedTabs.has(tabId);
-    sendResponse({ armed: isArmed });
+  // Content script asking if it should be activated (for session persistence)
+  if (message.action === "get-activated-state") {
+    const isActivated = activatedTabs.has(tabId);
+    sendResponse({ activated: isActivated });
     return true;
   }
 
@@ -206,7 +237,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Clean up when tab closes
 browser.tabs.onRemoved.addListener((tabId) => {
-  armedTabs.delete(tabId);
+  activatedTabs.delete(tabId);
   delete capturedImages[tabId];
   delete aggregatedCursorPoints[tabId];
   delete aggregatedCaptchaElements[tabId];
@@ -284,8 +315,8 @@ const CAPTCHA_IMAGE_PATTERNS = [
 
 browser.webRequest.onBeforeRequest.addListener(
   (details) => {
-    // Only capture for armed tabs
-    if (details.tabId < 0 || !armedTabs.has(details.tabId)) {
+    // Only capture for activated tabs
+    if (details.tabId < 0 || !activatedTabs.has(details.tabId)) {
       return;
     }
 
