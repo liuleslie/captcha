@@ -7,13 +7,17 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "captcha-logger@localhost",
-      "strict_min_version": "109.0"
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["browsingActivity", "websiteActivity", "websiteContent"],
+        "optional": ["technicalAndInteraction"]
+      }
     }
   },
 
   "icons": {
-    "48": "icons/icon-48.png",
-    "96": "icons/icon-96.png"
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png"
   },
 
   "permissions": [
