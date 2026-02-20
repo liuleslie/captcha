@@ -17,11 +17,11 @@ The focus of this thesis is on the nature of CAPTCHA as a human computation (cro
 
 3 axes: `labor`, `normativity`, `affect`
 
-### RP1, Conceptual CAPTCHA: Valentine/Puzzle
+### RP1, Conceptual CAPTCHA: Pen Pal
 
 `Latest: v0 blocked by technical foundations work; need to migrate to Firebase setup; drawing interface in early development.`
 
-A human algorithm game modeled explicitly on von Ahn and Dabbish’s games with a purpose. People write letters by hand via a KidPix/MacPaint-style digital drawing interface; those letters get scrambled and passed to the next person in a daisy chain, who has to interpret/decode them before writing their own. The hcomp system collects a handwriting recognition dataset, with each participant alternating between writer/data provider and reader/data labeler. 
+A human algorithm game modeled on von Ahn and Dabbish's games with a purpose. Participants write letters via a KidPix/MacPaint-style drawing interface, alternating between writer (data producer) and reader (data labeler). Readers respond to each letter, taking on the role of recipient or unattached observer. The hcomp system collects a dataset of handwritten letters paired with interpretive responses, with each participant as both a data sample and a human labeler.
 
 ### RP2: CAPTCHA Log
 
