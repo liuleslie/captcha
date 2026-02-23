@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CAPTCHA Diary — Consent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      padding: 32px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    h1 { font-size: 22px; margin-bottom: 6px; }
+    .subtitle { color: #555; font-size: 14px; margin-bottom: 24px; }
+    h2 { font-size: 16px; margin: 20px 0 8px; }
+    ul { margin-left: 20px; margin-bottom: 16px; font-size: 14px; }
+    li { margin-bottom: 4px; }
+    p { font-size: 14px; margin-bottom: 8px; }
+    .note {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .scope {
+      background: #fefce8;
+      border: 1px solid #fef08a;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .buttons { display: flex; gap: 12px; margin-top: 28px; }
+    button {
+      flex: 1;
+      padding: 12px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .accept { background: #2563eb; color: white; }
+    .accept:hover { background: #1d4ed8; }
+    .decline { background: #e5e7eb; color: #374151; }
+    .decline:hover { background: #d1d5db; }
+    .status {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #555;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CAPTCHA Diary</h1>
+    <p class="subtitle">Data collection consent</p>
+
+    <h2>What this extension collects</h2>
+    <p>When you visit a tab while the extension is active and a CAPTCHA is detected on that page, the extension automatically captures:</p>
+    <ul>
+      <li>CAPTCHA images (challenge imagery, network-intercepted and DOM-extracted)</li>
+      <li>The page URL and hostname serving the CAPTCHA</li>
+      <li>Your cursor position as (x, y) coordinates over time</li>
+      <li>CAPTCHA position within the page (DOM selectors, bounding box)</li>
+      <li>Browser viewport dimensions and frame structure</li>
+      <li>CAPTCHA prompt/instruction text (when available)</li>
+    </ul>
+
+    <div class="note">
+      <strong>All data stays in your browser.</strong> Collected sessions are stored in an in-browser archive (IndexedDB). Nothing is transmitted to any server. You can browse your archive, delete sessions, or export a ZIP at any time from the sidebar.
+    </div>
+
+    <h2>How monitoring works</h2>
+    <p>Monitoring is automatic — no toolbar click required. When you visit a tab, the extension watches it for CAPTCHAs. Recording begins when a CAPTCHA element appears on the page and saves when it disappears or you navigate away.</p>
+    <p>Tabs you have not visited are never monitored, even if they load a CAPTCHA in the background.</p>
+
+    <div class="scope">
+      <strong>Scope of this consent:</strong> This applies to this browser window for this browser session only. When you open a new window or restart the browser, you will be asked again.<br><br>
+      <strong>If you decline:</strong> This window will not be monitored. You can open a new window and consent there, or revisit by opening a new window and clicking the toolbar button.
+    </div>
+
+    <div class="buttons">
+      <button class="decline" id="decline-btn">Decline</button>
+      <button class="accept" id="accept-btn">Accept</button>
+    </div>
+    <p class="status" id="status"></p>
+  </div>
+
+  <script src="consent.js"></script>
+</body>
+</html>
