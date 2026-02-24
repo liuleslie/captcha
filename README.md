@@ -1,4 +1,4 @@
-# Notes on Groveling: Mechanic-Luddite Readings of CAPTCHA Across Scales
+# Groveling Alone Together: Readings of CAPTCHA Across Scales
 
 MSCD thesis repository. Looser spillage on [TiddlyWiki](https://densegut.tiddlyhost.com/).
 
