@@ -1,12 +1,12 @@
 # Diary
 
-Working code for a Firefox extension to record diary entries of CAPTCHA encounters.
+A Firefox extension to record diary entries of CAPTCHA encounters.
 
 ![Screenshot of CAPTCHA Diary extension open on a webpage that serves a Google reCAPTCHA authentication challenge. The extension is open to the left in the sidebar.](Still-20260223.png)
 
 ### Background
 
-I want to make my everyday encounters with CAPTCHA concrete and useful as personal data. I adapted the [Log](../README.md), which downloads encountered CAPTCHA media to the user’s local folder, into a diary that lives in the browser as an extension.
+I want to make my everyday encounters with CAPTCHA concrete and useful as personal data. This code adapts the [Log](../README.md), which downloads encountered CAPTCHA media to the user’s local folder, into a diary that lives in the browser as an extension.
 
 <!-- ### Bibliography
 
