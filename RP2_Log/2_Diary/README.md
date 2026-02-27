@@ -14,6 +14,7 @@ CITE A PAPER. -->
 
 ### Process
 
+A deeper appreciation for Claude Code, and how Anthropic appears to approach agents: I wonder if this is a way to pick up development skills — and what would the implications be for my relationship with code as a medium and material itself if I’m taking synthesized output as reference?
 
 
 <!-- While my adventures so far into scraping have  -->
