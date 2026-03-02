@@ -162,7 +162,7 @@
 
   #table-wrap {
     margin-top: var(--bar-height, 10rem);
-    overflow-x: auto;
+    overflow-x: clip;
   }
 
   #report-table {
@@ -186,12 +186,13 @@
     letter-spacing: 0.08em;
     color: var(--th-color);
     padding: 0.5rem 0.6rem;
-    border-bottom: 1px solid var(--th-border);
+    box-shadow: inset 0 -2px 0 var(--th-border);
     font-weight: normal;
     position: sticky;
     top: var(--bar-height, 0);
     background: var(--th-bg);
     transition: opacity 0.15s, color 0.15s;
+    z-index: 12;
   }
 
   #report-table thead th[data-filter],
