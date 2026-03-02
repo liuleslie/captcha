@@ -158,6 +158,21 @@
 
   #status.error { color: #c0392b; }
 
+  #search-input {
+    display: block;
+    width: 100%;
+    margin-top: 0.4rem;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--fg);
+    font-family: inherit;
+    font-size: 0.82rem;
+    padding: 0.25rem 0.6rem;
+    outline: none;
+  }
+  #search-input:focus { border-color: var(--input-focus); }
+  #search-input::placeholder { color: var(--status-color); }
+
   /* ── table ─────────────────────────────────────────────────── */
 
   #table-wrap {
@@ -270,6 +285,7 @@
   </form>
 
   <div id="status">fetching…</div>
+  <input id="search-input" type="text" placeholder="search description / symptoms / comments…" autocomplete="off">
 
 </div>
 
@@ -316,6 +332,7 @@ let userLng = null;
 let cachedReports = [];
 let sortField = 'time'; // 'time' | 'score' | 'dist'
 let distActive = false;
+let searchTerm = '';
 
 // ── bar height → CSS variable (drives sticky thead + table-wrap margin) ────
 
@@ -421,8 +438,18 @@ function sortedReports() {
   return rs;
 }
 
+function filteredReports() {
+  const rs = sortedReports();
+  if (!searchTerm) return rs;
+  const term = searchTerm.toLowerCase();
+  return rs.filter(r =>
+    [r.smell_description, r.feelings_symptoms, r.additional_comments]
+      .some(f => f && f.toLowerCase().includes(term))
+  );
+}
+
 function applySort() {
-  renderTable(sortedReports());
+  renderTable(filteredReports());
   const table = document.getElementById('report-table');
   table.classList.toggle('dist-visible', distActive);
   document.querySelectorAll('th[data-sort]').forEach(th => {
@@ -530,6 +557,11 @@ document.getElementById('report-table').addEventListener('click', e => {
     sortField = distActive ? 'dist' : 'time';
     applySort();
   }
+});
+
+document.getElementById('search-input').addEventListener('input', e => {
+  searchTerm = e.target.value.trim();
+  applySort();
 });
 
 init();
