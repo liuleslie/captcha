@@ -173,6 +173,25 @@
   #search-input:focus { border-color: var(--input-focus); }
   #search-input::placeholder { color: var(--status-color); }
 
+  #timeframe-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+  }
+  #days-slider {
+    flex: 1;
+    accent-color: var(--fg);
+    cursor: pointer;
+  }
+  #days-label {
+    color: var(--status-color);
+    font-size: 0.82rem;
+    white-space: nowrap;
+    min-width: 4.5rem;
+    text-align: right;
+  }
+
   /* ── table ─────────────────────────────────────────────────── */
 
   #table-wrap {
@@ -286,6 +305,10 @@
 
   <div id="status">fetching…</div>
   <input id="search-input" type="text" placeholder="search description / symptoms / comments…" autocomplete="off">
+  <div id="timeframe-row">
+    <input id="days-slider" type="range" min="1" max="90" value="7" step="1">
+    <span id="days-label">7 days</span>
+  </div>
 
 </div>
 
@@ -333,6 +356,7 @@ let cachedReports = [];
 let sortField = 'time'; // 'time' | 'score' | 'dist'
 let distActive = false;
 let searchTerm = '';
+let daysBack = 7;
 
 // ── bar height → CSS variable (drives sticky thead + table-wrap margin) ────
 
@@ -411,7 +435,7 @@ async function geocode(zip, streets) {
 // ── fetch reports ──────────────────────────────────────────────────────────
 
 async function loadReports() {
-  const start = weekStart();
+  const start = Math.floor(Date.now() / 1000) - daysBack * 86400;
   const url = `${API_BASE}/smell_reports?region_ids=${REGION_ID}&start_time=${start}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -502,7 +526,7 @@ function toggleColumnFocus(filter) {
   table.classList.toggle(`dim-${filter}`);
 }
 
-// ── init ───────────────────────────────────────────────────────────────────
+// ── init / refetch ─────────────────────────────────────────────────────────
 
 function setStatus(msg, isError = false) {
   const el = document.getElementById('status');
@@ -510,16 +534,24 @@ function setStatus(msg, isError = false) {
   el.className = isError ? 'error' : '';
 }
 
-async function init() {
-  setStatus('fetching this week\'s reports…');
+function daysLabel() {
+  return daysBack === 1 ? '1 day' : `${daysBack} days`;
+}
+
+async function refetch() {
+  setStatus(`fetching last ${daysLabel()}…`);
   try {
     cachedReports = await loadReports();
     const count = cachedReports.length;
-    setStatus(`${count} report${count !== 1 ? 's' : ''} this week`);
+    setStatus(`${count} report${count !== 1 ? 's' : ''} · last ${daysLabel()}`);
     applySort();
   } catch (e) {
-    setStatus('could not load reports: ' + e.message, true);
+    setStatus(e.message, true);
   }
+}
+
+async function init() {
+  await refetch();
 }
 
 document.getElementById('location-form').addEventListener('submit', async e => {
@@ -533,15 +565,18 @@ document.getElementById('location-form').addEventListener('submit', async e => {
     const loc = await geocode(zip, streets);
     userLat = loc.lat;
     userLng = loc.lng;
-    setStatus('fetching this week\'s reports…');
-    cachedReports = await loadReports();
-    const count = cachedReports.length;
-    setStatus(`${count} report${count !== 1 ? 's' : ''} this week`);
-    applySort();
+    distActive = true;
+    await refetch();
   } catch (e) {
     setStatus(e.message, true);
   }
 });
+
+document.getElementById('days-slider').addEventListener('input', e => {
+  daysBack = parseInt(e.target.value);
+  document.getElementById('days-label').textContent = daysLabel();
+});
+document.getElementById('days-slider').addEventListener('change', () => refetch());
 
 document.getElementById('report-table').addEventListener('click', e => {
   const th = e.target.closest('th');
@@ -553,8 +588,7 @@ document.getElementById('report-table').addEventListener('click', e => {
     applySort();
   } else if (th.dataset.sort === 'dist') {
     if (userLat === null) { setStatus('set location first', true); return; }
-    distActive = !distActive;
-    sortField = distActive ? 'dist' : 'time';
+    sortField = sortField === 'dist' ? 'time' : 'dist';
     applySort();
   }
 });
