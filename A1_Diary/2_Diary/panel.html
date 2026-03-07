@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CAPTCHA Diary</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 320px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      color: #1a1a1a;
+      background: #fff;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .header-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111;
+    }
+    .header-status {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+    .header-status.watching {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+    .header-status.recording {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    /* States */
+    .state { padding: 16px 14px; }
+
+    /* State A: no consent */
+    .no-consent-msg {
+      color: #6b7280;
+      font-size: 13px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: #f3f4f6; color: #374151; }
+    .btn-secondary:hover { background: #e5e7eb; }
+
+    /* State B: watching, no session */
+    .watching-msg {
+      color: #6b7280;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    /* State C: session preview */
+    .preview-img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #f3f4f6;
+      display: block;
+      margin-bottom: 10px;
+    }
+    .preview-img-placeholder {
+      width: 100%;
+      height: 120px;
+      background: #f3f4f6;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .meta-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .meta-badge {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: #f3f4f6;
+      color: #374151;
+    }
+    .meta-badge.provider {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+    .session-detail {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 4px;
+      margin-bottom: 12px;
+    }
+
+    /* Footer */
+    .footer {
+      border-top: 1px solid #e5e7eb;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .footer-count {
+      font-size: 11px;
+      color: #6b7280;
+    }
+    .footer-link {
+      font-size: 12px;
+      color: #2563eb;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      font-weight: 500;
+    }
+    .footer-link:hover { text-decoration: underline; }
+
+    /* Loading */
+    .loading { padding: 24px 14px; text-align: center; color: #9ca3af; font-size: 12px; }
+
+    /* Hidden */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <span class="header-title" id="header-title">CAPTCHA Diary</span>
+    <span class="header-status watching hidden" id="header-status"></span>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="state-loading">Loading...</div>
+
+  <!-- State A: no consent -->
+  <div class="state hidden" id="state-no-consent">
+    <p class="no-consent-msg">CAPTCHA Diary is not active in this window. Grant consent to begin monitoring.</p>
+    <button class="btn btn-primary" id="grant-consent-btn">Grant Consent</button>
+  </div>
+
+  <!-- State B: watching, no session yet -->
+  <div class="state hidden" id="state-watching">
+    <p class="watching-msg">Watching for CAPTCHAs on this tab. Sessions will appear here when captured.</p>
+    <button class="btn btn-secondary hidden" id="save-now-btn" style="margin-top:10px">Save recording now</button>
+  </div>
+
+  <!-- State C: recent session -->
+  <div class="state hidden" id="state-session">
+    <div id="preview-img-container">
+      <div class="preview-img-placeholder" id="preview-placeholder">No image preview</div>
+      <img class="preview-img hidden" id="preview-img" alt="CAPTCHA preview">
+    </div>
+    <div class="meta-row">
+      <span class="meta-badge provider" id="meta-provider"></span>
+      <span class="meta-badge" id="meta-images"></span>
+      <span class="meta-badge" id="meta-rounds"></span>
+    </div>
+    <div class="session-detail" id="meta-detail"></div>
+  </div>
+
+  <div class="footer">
+    <span class="footer-count" id="footer-count"></span>
+    <button class="footer-link hidden" id="view-archive-btn">View Archive →</button>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>

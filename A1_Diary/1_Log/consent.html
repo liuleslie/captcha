@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CAPTCHA Logger - Data Collection Consent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      padding: 32px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #555;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    h2 {
+      font-size: 16px;
+      margin: 20px 0 8px;
+    }
+    ul {
+      margin-left: 20px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    li { margin-bottom: 4px; }
+    .highlight {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .impact {
+      background: #fefce8;
+      border: 1px solid #fef08a;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 28px;
+    }
+    button {
+      flex: 1;
+      padding: 12px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .accept {
+      background: #2563eb;
+      color: white;
+    }
+    .accept:hover { background: #1d4ed8; }
+    .decline {
+      background: #e5e7eb;
+      color: #374151;
+    }
+    .decline:hover { background: #d1d5db; }
+    .status {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #555;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CAPTCHA Logger v0</h1>
+    <p class="subtitle">Data collection consent</p>
+
+    <h2>What this extension collects</h2>
+    <p style="font-size:14px; margin-bottom:8px;">When you activate recording on a page and a CAPTCHA is detected, this extension captures:</p>
+    <ul>
+      <li>CAPTCHA images (challenge imagery)</li>
+      <li>The page URL serving the CAPTCHA</li>
+      <li>Your cursor position as (x, y) coordinates over time</li>
+      <li>CAPTCHA position within the page (DOM selectors, bounding box)</li>
+      <li>Browser viewport dimensions</li>
+      <li>CAPTCHA prompt/instruction text (when available)</li>
+    </ul>
+
+    <div class="highlight">
+      <strong>All data stays on your device.</strong> Collected data is saved as files to your local Downloads folder. This extension does not transmit any data to a server.
+    </div>
+
+    <h2>How recording works</h2>
+    <p style="font-size:14px;">Recording is not automatic. You must click the extension’s toolbar button to activate it on any given tab. Recording begins only when a CAPTCHA element is detected on the page, and stops when the CAPTCHA disappears or you navigate away.</p>
+
+    <div class="impact">
+      <strong>If you accept:</strong> The extension’s recording feature will be enabled. You can activate/deactivate it per-tab via the toolbar button.<br><br>
+      <strong>If you decline:</strong> The extension will remain installed but recording will be disabled. You can revisit this choice at any time by clicking the toolbar button.
+    </div>
+
+    <div class="buttons">
+      <button class="decline" id="decline-btn">Decline</button>
+      <button class="accept" id="accept-btn">Accept</button>
+    </div>
+    <p class="status" id="status"></p>
+  </div>
+
+  <script src="consent.js"></script>
+</body>
+</html>
