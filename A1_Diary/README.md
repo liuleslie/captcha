@@ -1,19 +1,8 @@
-# CAPTCHA Log
+# Artifact 1: Diary
 
-A Firefox extension to a build an archive of contextual data→information about CAPTCHAs encountered during everyday browsing. Open the inspector tool via web developer tools to view extension logs.
+This is the meta-folder containing my months-long quest to program a CAPTCHA diary. 
 
-The extension gathers the following data when it detects CAPTCHAs (* for fields still debugging):
-- as discrete images: CAPTCHA imagery
-- `session.json`:
-    - site URL serving the CAPTCHA
-    - number of rounds of CAPTCHA data labeling completed*
-    - CAPTCHA position within DOM (via nested HTML elements) and viewport
-    - CAPTCHA prompt/instructions*
-    - user’s cursor position as a series of (x,y) coordinates, sampled on every `mousemove` event (~10–60 Hz depending on hardware/browser).
-
-It exports this data upon either the active tab’s closing or a backup timed interval of 60 seconds to a local folder on the user’s device.
-
-
+As of early-mid March 2026, this repository has grown to reflect the shift from a [cursor position logger](/A1_Diary/0_yourBiggestFan/README.md) to [CAPTCHA downloader](/A1_Diary/1_Log/README.md) to full [CAPTCHA diary/archive](/A1_Diary/2_Diary/README.md).
 
 ## Background
 
@@ -27,7 +16,7 @@ While evaluation methods are unclear (colloquial accounts of user/browser teleme
 The original goal of developing this Log is to focus on hCaptcha, Arkose MatchKey, and Arkose funCaptcha for their (as personally observed) multi-step, increasingly cognitively burdensome user experience. Given the peculiar development process of this extension, it has been primarily been tested on Google reCAPTCHA for the scheme’s breadth/coverage. Support for these three schemes is ongoing. 
 
 ### A note on the code
-Major thanks to Ben Pettis for _[HTML Search and Record](https://github.com/bpettis/html-search-and-record)_, which I used as a technical foundation for this extension. This Log’s code is approximately 1:4 manually written:Claude Code (CC) synthesized, with CC in “Ask before edits” and “Plan” mode alternatingly, featuring long bouts of me metaphorically “talking to myself via large language model” during the overcast weeks of mid-late January through mid-February, 2026. It was iteratively tested in Firefox v147.0.3. A fully manual poring over the code is long overdue.
+Major thanks to Ben Pettis for _[HTML Search and Record](https://github.com/bpettis/html-search-and-record)_, which I used as a technical foundation for this extension. This Diary’s code is approximately 1:4 manually written:Claude Code (CC) synthesized, with CC in “Ask before edits” and “Plan” mode alternatingly, featuring long bouts of me metaphorically “talking to myself via large language model” during the first overcast, then promisingly sunny weeks of mid-late January through mid-March, 2026. It was iteratively tested in Firefox v147.0.3. A fully manual poring over the code is long overdue.
 
 ## Bibliography
 Ben Pettis, _[HTML Search and Record](https://github.com/bpettis/html-search-and-record)_ (2021)

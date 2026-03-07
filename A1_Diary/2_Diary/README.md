@@ -29,7 +29,7 @@ There are 2 ways to export things:
 - **flat export** downloads only the images of selected recordings as a .zip
 
 ## What’s searchable
-Filter buttons are around for you to sift through your CAPTCHA archive more finely; you can also search by the notes taken in the search bar.
+Filter buttons are around for you to sift through your CAPTCHA archive more finely; you can also search by the notes taken by typing directly in the search bar.
 
 ## Known limitations and issues
 Diary broadly supports [Google reCAPTCHA v2](https://developers.google.com/recaptcha/docs/versions) (“I’m not a robot” checkbox) challenges. Invisible reCAPTCHA v2 badges, as well as reCAPTCHA v3, which uses scoring and skips any user interaction altogether, are out of scope for this project.
