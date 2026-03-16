@@ -6,47 +6,95 @@
 // Port (real-time updates from background)
 // ============================================
 
-const port = browser.runtime.connect({ name: "sidebar" });
+let port;
 let requestCounter = 0;
 const pendingRequests = {};
 
-port.onMessage.addListener((message) => {
-  if (message.requestId && pendingRequests[message.requestId]) {
-    pendingRequests[message.requestId](message);
-    delete pendingRequests[message.requestId];
+function connectPort() {
+  try {
+    port = browser.runtime.connect({ name: "sidebar" });
+    console.log("[DIARY sidebar] port connected");
+  } catch (e) {
+    // Background not yet ready (e.g. mid-restart) — retry shortly.
+    console.log("[DIARY sidebar] port connect failed, retrying:", e.message);
+    setTimeout(connectPort, 1000);
     return;
   }
-  if (message.action === "recording-active") {
-    showActiveRecordingCard(message.tabId, message.hostname);
-  }
-  if (message.action === "recording-ended") {
-    removeActiveRecordingCard(message.tabId);
-  }
-  if (message.action === "session-saved") {
-    if (message.session?.tabId != null) removeActiveRecordingCard(message.session.tabId);
-    loadPage();
-    updateStats();
-  }
-  if (message.action === "archive-stats-updated") {
-    setStatsBar(message.totalSessions, message.totalImages);
-  }
-  if (message.action === "session-deleted") {
-    const card = document.querySelector(`[data-session-id="${message.sessionId}"]`);
-    if (card) {
-      const group = card.closest(".session-group");
-      revokeBlobsAndRemove(card);
-      if (group && group.querySelectorAll(".session-card").length === 0) group.remove();
+
+  port.onMessage.addListener((message) => {
+    if (message.requestId && pendingRequests[message.requestId]) {
+      pendingRequests[message.requestId](message);
+      delete pendingRequests[message.requestId];
+      return;
     }
-    updateStats();
-  }
-});
+    console.log("[DIARY sidebar] port message received:", message.action, message);
+    if (message.action === "recording-active") {
+      showActiveRecordingCard(message.tabId, message.hostname);
+    }
+    if (message.action === "recording-ended") {
+      removeActiveRecordingCard(message.tabId);
+    }
+    if (message.action === "session-saved") {
+      if (message.session?.tabId != null) removeActiveRecordingCard(message.session.tabId);
+      loadPage();
+      updateStats();
+    }
+    if (message.action === "archive-stats-updated") {
+      setStatsBar(message.totalSessions, message.totalImages);
+    }
+    if (message.action === "session-deleted") {
+      const card = document.querySelector(`[data-session-id="${message.sessionId}"]`);
+      if (card) {
+        const group = card.closest(".session-group");
+        revokeBlobsAndRemove(card);
+        if (group && group.querySelectorAll(".session-card").length === 0) group.remove();
+      }
+      updateStats();
+    }
+  });
+
+  port.onDisconnect.addListener(() => {
+    // Background script restarted (e.g. extension reload during development).
+    // Clear in-flight state, then reconnect and refresh the view.
+    console.log("[DIARY sidebar] port disconnected — will reconnect");
+    isLoading = false;
+    pendingReload = false;
+    for (const id of Object.keys(pendingRequests)) {
+      delete pendingRequests[id];
+    }
+    // connectPort() is synchronous but background's onConnect fires async.
+    // Delay loadPage() so background has time to register its port.onMessage
+    // listener before we send the first portRequest.
+    setTimeout(() => {
+      connectPort();
+      setTimeout(loadPage, 300);
+    }, 500);
+  });
+}
+
+connectPort();
 
 function portRequest(action, params = {}) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const requestId = ++requestCounter;
-    pendingRequests[requestId] = resolve;
+    const timer = setTimeout(() => {
+      delete pendingRequests[requestId];
+      reject(new Error(`portRequest timeout: ${action}`));
+    }, 8000);
+    pendingRequests[requestId] = (msg) => {
+      clearTimeout(timer);
+      resolve(msg);
+    };
     port.postMessage({ action, requestId, ...params });
   });
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // ============================================
@@ -77,6 +125,7 @@ let filteredImageCount = null;
 let useAbsoluteTime = true;    // row timestamps: true = hh:mm, false = "x ago"
 let groupTimeAbsolute = true;  // group header time ranges
 let isLoading = false;
+let pendingReload = false;
 let currentDetailSessionId = null;
 let currentView = "recordings"; // "recordings" | "images"
 const detailBlobUrls = [];
@@ -172,6 +221,7 @@ function revokeBlobsAndRemove(card) {
 // ============================================
 
 function showActiveRecordingCard(tabId, hostname) {
+  console.log("[DIARY sidebar] showActiveRecordingCard", tabId, hostname);
   removeActiveRecordingCard(tabId);
   const card = document.createElement("div");
   card.className = "active-recording-card";
@@ -584,12 +634,24 @@ function buildGroupPanel(group) {
     body.appendChild(card);
   }
 
-  // Group checkbox selects all sessions in this date
+  // Group checkbox selects all sessions in this date.
+  // Note: .group-header has user-select:none which can prevent Firefox from toggling
+  // checkbox.checked on click when appearance:none is set. To avoid reading a stale
+  // pre-click state, we derive the desired checked value from the card states instead.
   checkbox.addEventListener("click", (e) => {
     e.stopPropagation();
-    const checked = checkbox.checked;
-    body.querySelectorAll(".card-select").forEach(cb => { cb.checked = checked; });
+    const cardCheckboxes = [...body.querySelectorAll(".card-select")];
+    const allChecked = cardCheckboxes.every(cb => cb.checked);
+    const checked = !allChecked; // if all were checked → deselect; otherwise → select all
+    checkbox.checked = checked;
+    checkbox.indeterminate = false;
+    cardCheckboxes.forEach(cb => { cb.checked = checked; });
     header.classList.toggle("has-selection", checked);
+    for (const session of group.sessions) {
+      if (checked) selectedSessionMap.set(session.sessionId, session.imageCount);
+      else selectedSessionMap.delete(session.sessionId);
+    }
+    updateGroupSelectionState();
     updateExportSelectedVisibility();
     updateImagesViewSelection();
   });
@@ -604,8 +666,9 @@ function buildGroupPanel(group) {
 // ============================================
 
 async function loadPage() {
-  if (isLoading) return;
+  if (isLoading) { pendingReload = true; return; }
   isLoading = true;
+  pendingReload = false;
 
   const hostnameFilter = document.getElementById("filter-hostname").value.trim();
   const providerFilter = document.getElementById("filter-provider").value;
@@ -653,6 +716,11 @@ async function loadPage() {
     } else {
       filteredSessionCount = null;
       filteredImageCount = null;
+      // Derive totals directly from the unfiltered result so stats are
+      // always fresh after any loadPage() call (avoids timing races with
+      // archive-stats-updated port messages).
+      totalSessions = sessions.length;
+      totalImages = sessions.reduce((sum, s) => sum + (s.imageCount || 0), 0);
     }
     updateStatsDisplay();
 
@@ -673,6 +741,7 @@ async function loadPage() {
   }
 
   isLoading = false;
+  if (pendingReload) loadPage();
 }
 
 function renderRecordingsView(sessions, list) {
@@ -939,7 +1008,7 @@ async function openDetail(sessionId) {
         </div>
         <div class="detail-meta-row">
           <span class="meta-label">Source URL</span>
-          <span class="meta-value"${session.sourceUrl ? ` data-copy-url="${session.sourceUrl}" style="cursor:pointer;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom" title="Click to copy"` : ""}>${session.sourceUrl || "—"}</span>
+          <span class="meta-value"${session.sourceUrl ? ` data-copy-url="${escapeHtml(session.sourceUrl)}" style="cursor:pointer;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom" title="Click to copy"` : ""}>${escapeHtml(session.sourceUrl || "—")}</span>
         </div>
         <div class="detail-meta-row">
           <span class="meta-label">Session ID</span>
@@ -981,7 +1050,7 @@ async function openDetail(sessionId) {
       html += `<div class="detail-section">
         <div class="detail-section-title">Detected Elements</div>`;
       for (const el of session.captchaElements) {
-        html += `<div class="detected-element">${el.selector}</div>`;
+        html += `<div class="detected-element">${escapeHtml(el.selector)}</div>`;
       }
       html += `</div>`;
     }
@@ -995,7 +1064,7 @@ async function openDetail(sessionId) {
     // Notes with autosave
     html += `<div class="detail-section">
       <div class="detail-section-title">Notes</div>
-      <textarea class="notes-textarea" id="detail-notes" placeholder="Quick notes here...">${session.notes || ""}</textarea>
+      <textarea class="notes-textarea" id="detail-notes" placeholder="Quick notes here...">${escapeHtml(session.notes || "")}</textarea>
       <div class="notes-footer">
         <button class="btn-sm" id="notes-save-btn">Save</button>
         <span class="notes-status" id="notes-status"></span>
@@ -1451,6 +1520,8 @@ document.querySelectorAll(".view-toggle").forEach(el => {
 // Header toggles: dark mode, image filter
 // ============================================
 
+document.getElementById("refresh-btn").addEventListener("click", () => loadPage());
+
 document.getElementById("dark-mode-btn").addEventListener("click", () => {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next;
@@ -1498,7 +1569,9 @@ async function init() {
   // Narrow sidebar: hide badges when width is 300–350px
   const resizeObs = new ResizeObserver(entries => {
     const w = entries[0].contentRect.width;
-    document.body.classList.toggle("narrow", w >= 300 && w <= 350);
+    // document.body.classList.toggle("narrow", w >= 300 && w <= 350);
+    document.body.classList.toggle("narrow", w <= 350);
+    document.body.classList.toggle("too-narrow", w < 280);
   });
   resizeObs.observe(document.body);
 

@@ -89,8 +89,8 @@
     .header-time-trigger {
       font-size: 12px;
       font-weight: 500;
-      color: var(--bg-page);
-      background: var(--text-primary);
+      background: var(--bg-input);
+      color: var(--text-primary);
       border: none;
       border-radius: 6px;
       padding: 5px 10px;
@@ -104,7 +104,7 @@
       height: 28px;
       border-radius: 6px;
       border: none;
-      background: var(--text-primary);
+      background: var(--bg-input);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -112,10 +112,11 @@
       padding: 0;
       flex-shrink: 0;
     }
-    .btn-icon:hover { opacity: 0.85; }
-    .btn-icon img { width: 16px; height: 16px; display: block; }
-    /* Light mode: button bg is dark (#09090b), so invert black icon to white */
-    [data-theme="light"] .btn-icon img { filter: invert(1); }
+    .btn-icon:hover { opacity: 0.75; }
+    /* Dark mode (default): dark bg, invert black SVG → white icon */
+    .btn-icon img { width: 16px; height: 16px; display: block; filter: invert(1); }
+    /* Light mode: light bg, keep black SVG as-is */
+    [data-theme="light"] .btn-icon img { filter: none; }
     /* Custom tooltip — no browser delay */
     .btn-icon { position: relative; }
     .btn-icon::after {
@@ -149,8 +150,13 @@
     }
     .btn-sm:hover { background: var(--btn-hover); }
     .btn-sm.active { background: var(--badge-provider-bg); color: var(--badge-provider-text); border-color: var(--badge-provider-bg); }
+    /* farewell blues */
     /* .btn-sm.primary { background: #2563eb; color: #fff; border-color: #2563eb; } */
-    .btn-sm.primary { background: var(--text-primary); color: var(--bg-page); border-color: var(--text-primary); }
+    .btn-sm.primary { 
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border-color: var(--bg-input);
+    }
     .btn-sm.primary:hover { opacity: 0.85; }
 
     /* ---- Filter bars ---- */
@@ -645,8 +651,10 @@
     }
     .active-recording-label { flex: 1; font-size: 12px; color: var(--text-secondary); font-style: italic; }
 
-    /* ---- Narrow sidebar (300–350px): hide badges ---- */
+    /* ---- Narrow sidebar (280–350px): hide badges ---- */
     body.narrow .row-badges { display: none; }
+
+    /* ---- Narrow sidebar (<283px): for later — shorten title from captcha archive to just archive ---- */
 
     /* ---- Lightboxed image outline in detail view ---- */
     .detail-img.lb-active { outline: 2px solid rgba(255,255,255,0.65); outline-offset: 2px; }
@@ -677,6 +685,23 @@
       display: flex; align-items: center;
       gap: 10px; margin-top: 4px; min-height: 20px;
     }
+
+    /* ---- Too-narrow overlay ---- */
+    #too-narrow-msg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: var(--bg-page);
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    body.too-narrow #too-narrow-msg { display: flex; }
 
     /* ---- Lightbox ---- */
     .lightbox {
@@ -745,6 +770,9 @@
       </div>
     </div>
     <div class="header-actions">
+      <button class="btn-icon" id="refresh-btn" data-tooltip="Refresh recordings">
+        <img src="sidebar-icons/refresh.svg" alt="">
+      </button>
       <button class="btn-icon" id="toggle-images-btn" data-tooltip="All recordings">
         <img id="images-filter-icon" src="sidebar-icons/darkMode-allImages.svg" alt="">
       </button>
@@ -793,7 +821,7 @@
     <div class="detail-header">
       <button class="back-btn" id="back-btn">←</button>
       <span class="detail-title" id="detail-title"></span>
-      <button class="btn-sm primary" id="detail-export-btn">Export All</button>
+      <button class="btn-sm primary" id="detail-export-btn">Export</button>
     </div>
     <div class="detail-body" id="detail-body"></div>
     <div class="detail-footer">
@@ -816,6 +844,9 @@
     <button class="lb-arrow lb-next" id="lb-next">&#8594;</button>
     <div class="lb-scene-badge" id="lb-scene-badge" style="display:none">Scene capture</div>
   </div>
+
+  <!-- Too-narrow overlay: shown by body.too-narrow class when sidebar < 283px -->
+  <div id="too-narrow-msg">Widen sidebar to use Diary</div>
 
   <script src="sidebar.js"></script>
 </body>

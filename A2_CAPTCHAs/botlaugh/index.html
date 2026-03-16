@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>laughCAPTCHA</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- screen-reader live regions -->
+  <div id="announce"     role="status" aria-live="polite"    aria-atomic="true" class="sr-only"></div>
+  <div id="announce-err" role="alert"  aria-live="assertive" aria-atomic="true" class="sr-only"></div>
+
+  <div id="app">
+
+    <header id="topbar">
+      <span id="topbar-left">
+        <span id="stat-solved" aria-live="polite" aria-atomic="true">
+          <span id="solved-count">0</span> solved
+        </span>
+      </span>
+      <span id="topbar-title" aria-hidden="true">laughCAPTCHA</span>
+      <span id="topbar-right">
+        <button id="btn-theme" aria-label="switch to light mode">light</button>
+        <button id="btn-about" aria-label="open about page">about</button>
+      </span>
+    </header>
+
+    <main id="main">
+
+      <div id="prompt-overlay">
+        <p id="prompt-text" aria-live="polite" aria-atomic="true">listen, then mimic the laugh</p>
+        <p id="prompt-sub"  aria-live="polite" aria-atomic="true"></p>
+      </div>
+
+      <!-- two waveforms stacked vertically.
+           Hover overlays and time/duration labels are injected by addWaveOverlay() in app.js. -->
+      <div id="audio-frame">
+        <div class="wave-container">
+          <span class="wave-label" aria-hidden="true">target</span>
+          <div class="wave-box">
+            <div id="wf-target" role="img" aria-label="target laugh waveform"></div>
+          </div>
+        </div>
+        <div class="wave-container">
+          <span class="wave-label" aria-hidden="true">you</span>
+          <div class="wave-box">
+            <div id="wf-user" role="img" aria-label="your recording waveform"></div>
+            <!-- live meter canvas — shown only during recording, sits above wf-user -->
+            <canvas id="rec-canvas" aria-hidden="true"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- similarity score, hidden until result -->
+      <div id="score-wrap" hidden aria-live="polite" aria-atomic="true">
+        <span id="score-val">0</span>%
+        <span id="score-label"></span>
+      </div>
+
+      <!-- Button order: play target · play user · play both · retry · skip -->
+      <div id="controls" role="group" aria-label="CAPTCHA controls">
+        <button id="btn-play"      aria-label="play target laugh (t)">play target (t)</button>
+        <button id="btn-play-user" aria-label="play your laugh (u)"   hidden>play user (u)</button>
+        <button id="btn-play-both" aria-label="play both laughs (b)"  hidden>play both (b)</button>
+        <button id="btn-hold"      aria-label="hold to record (r)"    disabled>retry (r)</button>
+        <button id="btn-retry"     aria-label="skip to different target laugh (s)" hidden>skip (s)</button>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- about panel — overlay -->
+  <div id="about-panel" class="overlay" role="dialog" aria-modal="true"
+       aria-labelledby="about-heading" hidden>
+    <h2 id="about-heading" class="sr-only">About laughCAPTCHA</h2>
+    <p>laughCAPTCHA plays a target laugh and asks you to mimic it.</p>
+    <p>Your recording is compared locally — nothing is uploaded. We compare spectral shape (MFCCs via Meyda.js) and pitch using Dynamic Time Warping. Pass threshold: 75% similarity.</p>
+    <button id="btn-back" aria-label="close about">close</button>
+  </div>
+
+  <!-- permission screen — overlay -->
+  <div id="permission-screen" class="overlay">
+    <p>This challenge requires microphone access.</p>
+    <button id="btn-allow">allow microphone</button>
+    <p id="permission-error" class="err-text" hidden></p>
+  </div>
+
+  <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/meyda/dist/web/meyda.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -50,6 +50,10 @@ let sidebarPort = null;
 // Quick lookup: most recent sessionId per tab (for popup preview)
 let lastSessionByTab = {};
 
+// Last known page URL per tab — stored at capture time so flushSessionForTab
+// can use it even after the tab is already closed.
+let tabUrls = {};
+
 // Deduplication: track last save per tab to prevent double-saves.
 // Two separate guards:
 //   1. Same recordedAt (recording start timestamp) — definitively the same encounter
@@ -90,8 +94,33 @@ function checkAndGrantConsent(windowId) {
 
 browser.runtime.onConnect.addListener((port) => {
   if (port.name === "sidebar") {
+    console.log("[DIARY] Sidebar port connected");
     sidebarPort = port;
-    port.onDisconnect.addListener(() => { sidebarPort = null; });
+    port.onDisconnect.addListener(() => {
+      console.log("[DIARY] Sidebar port disconnected");
+      sidebarPort = null;
+    });
+
+    // Replay recording-active for any tabs already in progress when sidebar connects.
+    // This handles the case where the sidebar was opened after the first image was
+    // captured (so the original recording-active message was never received).
+    for (const [tabIdStr, imgs] of Object.entries(capturedImages)) {
+      if (imgs.length > 0) {
+        const tabId = parseInt(tabIdStr, 10);
+        browser.tabs.get(tabId).then(tab => {
+          let hostname = "";
+          try { hostname = new URL(tab.url).hostname; } catch {}
+          port.postMessage({ action: "recording-active", tabId, hostname });
+        }).catch(() => {
+          // Tab may have closed between capture and sidebar connect.
+          // Use the stored URL (set at capture time) as fallback.
+          const storedUrl = tabUrls[tabId] || "";
+          let hostname = "";
+          try { hostname = new URL(storedUrl).hostname; } catch {}
+          if (hostname) port.postMessage({ action: "recording-active", tabId, hostname });
+        });
+      }
+    }
 
     // Handle sidebar requests via port messages
     port.onMessage.addListener(async (message) => {
@@ -115,10 +144,15 @@ browser.runtime.onConnect.addListener((port) => {
 });
 
 function notifySidebar(action, payload) {
-  if (!sidebarPort) return;
+  if (!sidebarPort) {
+    console.log(`[DIARY] notifySidebar("${action}") skipped — sidebarPort is null`);
+    return;
+  }
   try {
     sidebarPort.postMessage({ action, ...payload });
+    console.log(`[DIARY] notifySidebar("${action}") sent`);
   } catch (e) {
+    console.log(`[DIARY] notifySidebar("${action}") failed:`, e.message);
     sidebarPort = null;
   }
 }
@@ -173,6 +207,7 @@ browser.tabs.onRemoved.addListener(async (tabId) => {
   delete aggregatedCursorPoints[tabId];
   delete aggregatedCaptchaElements[tabId];
   delete lastSessionByTab[tabId];
+  delete tabUrls[tabId];
 });
 
 // ============================================
@@ -284,6 +319,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "captcha-inline-images" && tabId) {
     if (!capturedImages[tabId]) capturedImages[tabId] = [];
+    const prevCount = capturedImages[tabId].length;
 
     for (const img of message.images) {
       const urlKey = img.dataUrl.substring(0, 200);
@@ -311,6 +347,19 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (capturedImages[tabId].length > MAX_IMAGES_PER_TAB) {
       capturedImages[tabId] = capturedImages[tabId].slice(-MAX_IMAGES_PER_TAB);
+    }
+
+    // Notify sidebar of first recording activity (DOM-extraction path).
+    // Mirrors the same notification in the webRequest interception path.
+    // Also store the tab URL so flushSessionForTab can use it even after
+    // the tab is already closed (same as the webRequest path does).
+    if (prevCount === 0 && capturedImages[tabId].length > 0) {
+      browser.tabs.get(tabId).then(tab => {
+        tabUrls[tabId] = tab.url || "";
+        let hostname = "";
+        try { hostname = new URL(tab.url).hostname; } catch {}
+        notifySidebar("recording-active", { tabId, hostname });
+      }).catch(() => {});
     }
 
     browser.tabs.sendMessage(tabId, {
@@ -595,9 +644,12 @@ browser.webRequest.onBeforeRequest.addListener(
         if (!capturedImages[details.tabId]) capturedImages[details.tabId] = [];
         capturedImages[details.tabId].push(imageEntry);
 
-        // Notify sidebar that recording has started (first image for this tab)
+        // Notify sidebar that recording has started (first image for this tab).
+        // Also store the tab URL now so flushSessionForTab can use it even
+        // after the tab is already closed (browser.tabs.get would throw then).
         if (capturedImages[details.tabId].length === 1) {
           browser.tabs.get(details.tabId).then(tab => {
+            tabUrls[details.tabId] = tab.url || "";
             let hostname = "";
             try { hostname = new URL(tab.url).hostname; } catch {}
             notifySidebar("recording-active", { tabId: details.tabId, hostname });
@@ -765,11 +817,23 @@ async function flushSessionForTab(tabId, trigger) {
   const cursors = aggregatedCursorPoints[tabId] || [];
   if (images.length === 0 && cursors.length === 0) return;
 
+  // Use the stored URL captured when the first image arrived.
+  // Fall back to an empty string if tabs.get fails (tab already closed).
+  let sourceUrl = tabUrls[tabId] || "";
   try {
     const tab = await browser.tabs.get(tabId);
+    sourceUrl = tab.url || sourceUrl;
+  } catch (e) {
+    // Tab already gone — proceed with the stored URL.
+  }
+
+  let hostname = "";
+  try { hostname = new URL(sourceUrl || "about:blank").hostname; } catch {}
+
+  try {
     await saveSession(tabId, {
-      hostname: new URL(tab.url || "about:blank").hostname,
-      sourceUrl: tab.url || "",
+      hostname,
+      sourceUrl,
       exportTrigger: trigger,
       rounds: 1,
       duration: cursors.length > 0 ? cursors[cursors.length - 1].t || 0 : 0,
