@@ -32,11 +32,13 @@ There are 2 ways to export things:
 ## What’s searchable
 Filter buttons are around for you to sift through your CAPTCHA archive more finely; you can also search by the notes taken by typing directly in the search bar.
 
-## Known limitations and issues
+## Acknowledgements, known limitations and issues
+Button icons within the sidebar are from Raven Developmenet’s ShadCN UI Kit, accessed via Figma Community templates.
+
 Diary broadly supports [Google reCAPTCHA v2](https://developers.google.com/recaptcha/docs/versions) (“I’m not a robot” checkbox) challenges. Invisible reCAPTCHA v2 badges, as well as reCAPTCHA v3, which uses scoring and skips any user interaction altogether, are out of scope for this project.
 
 Diary also (somewhat spottily) supports Intuition Machines’ [hCaptcha](https://www.hcaptcha.com/) schemes, however it currently cannot collect motion CAPTCHAs.
 
 Much of this code is the product of a text extrusion/synthesizer by the name of Claude Code; while I reskinned the design using a ShadCN Figma kit, I have not yet tested this with a screen reader and as such accessibility needs rigorous review.
 
-Lastly a little embarrassingly the program may flag false positives; this occurs when text on the page is about CAPTCHAs and matches filtering patterns. If you are willing, you may delete these false positive recordings via selection > export selected > delete (a UI/UX flow I am aware is off and needs fixing).
+Lastly a little embarrassingly the program may flag false positives; this occurs when text on the page is about CAPTCHAs and matches filtering patterns. If you are willing, you may delete these false positive recordings via selection > delete.

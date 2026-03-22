@@ -2,7 +2,7 @@
 
 This is the meta-folder containing my months-long quest to program a CAPTCHA diary. 
 
-As of early-mid March 2026, this repository has grown to reflect the shift from a [cursor position logger](/A1_Diary/0_yourBiggestFan/README.md) to [CAPTCHA downloader](/A1_Diary/1_Log/README.md) to full [CAPTCHA diary/archive](/A1_Diary/2_Diary/README.md).
+As of early-mid March 2026, this repository has grown to reflect the shift from a [cursor position logger](/Diary/0_yourBiggestFan/README.md) to [CAPTCHA downloader](/Diary/1_Log/README.md) to full [CAPTCHA diary/archive](/Diary/2_Diary/README.md).
 
 ## Background
 
