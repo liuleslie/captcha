@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CAPTCHA Archive</title>
+  <title>CAPTCHA Diary</title>
   <style>
     /* ============================================
        CSS Variables — shadcn zinc palette
@@ -117,6 +117,10 @@
     .btn-icon img { width: 16px; height: 16px; display: block; filter: invert(1); }
     /* Light mode: light bg, keep black SVG as-is */
     [data-theme="light"] .btn-icon img { filter: none; }
+    /* Starred filter active: force icon to #ef4444 regardless of theme */
+    #starred-filter-btn.active img {
+      filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(338deg) brightness(104%) contrast(97%);
+    }
     /* Custom tooltip — no browser delay */
     .btn-icon { position: relative; }
     .btn-icon::after {
@@ -409,13 +413,15 @@
       background: none;
       border: none;
       cursor: pointer;
-      font-size: 18px;
-      color: var(--text-secondary);
       padding: 4px 8px;
       border-radius: 4px;
-      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .back-btn:hover { background: var(--bg-input); color: var(--text-primary); }
+    .back-btn:hover { background: var(--bg-input); }
+    .back-btn img { width: 16px; height: 16px; display: block; filter: invert(1); }
+    [data-theme="light"] .back-btn img { filter: none; }
     .detail-title { font-size: 14px; font-weight: 600; color: var(--text-primary); flex: 1; }
     .detail-body {
       flex: 1;
@@ -654,7 +660,7 @@
     /* ---- Narrow sidebar (280–350px): hide badges ---- */
     body.narrow .row-badges { display: none; }
 
-    /* ---- Narrow sidebar (<283px): for later — shorten title from captcha archive to just archive ---- */
+    /* ---- Narrow sidebar (<283px): for later — shorten title from captcha diary to just diary ---- */
 
     /* ---- Lightboxed image outline in detail view ---- */
     .detail-img.lb-active { outline: 2px solid rgba(255,255,255,0.65); outline-offset: 2px; }
@@ -703,6 +709,90 @@
     }
     body.too-narrow #too-narrow-msg { display: flex; }
 
+    /* ---- Notes view cards ---- */
+    .notes-card {
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .notes-card:hover { background: var(--bg-input); }
+    .notes-card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 5px;
+    }
+    .notes-card-preview {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    /* ---- Star button on session rows ---- */
+    .star-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 3px;
+      font-size: 13px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .star-btn:hover { color: var(--text-secondary); }
+    .star-btn.starred { color: #ef4444; }
+
+    /* ---- Lightbox caption ---- */
+    .lb-caption-wrap {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(500px, 80%);
+      z-index: 202;
+      display: flex;
+      gap: 6px;
+      align-items: flex-end;
+      margin-bottom:3em;
+    }
+    .lb-caption-input {
+      flex: 1;
+      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 13px;
+      padding: 7px 12px;
+      outline: none;
+      font-family: inherit;
+      min-width: 0;
+      resize: vertical;
+      min-height: 36px;
+      max-height: 180px;
+      line-height: 1.5;
+    }
+    .lb-caption-input::placeholder { color: rgba(255,255,255,0.35); }
+    .lb-caption-input:focus { border-color: rgba(255,255,255,0.5); }
+    .lb-caption-save {
+      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      padding: 7px 12px;
+      cursor: pointer;
+      font-family: inherit;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .lb-caption-save:hover { background: rgba(255,255,255,0.15); }
+
     /* ---- Lightbox ---- */
     .lightbox {
       position: fixed;
@@ -710,34 +800,34 @@
       background: rgba(0,0,0,0.85);
       z-index: 200;
       display: flex;
+      flex-direction: row;
       align-items: center;
-      justify-content: center;
       cursor: pointer;
     }
     .lightbox.hidden { display: none; }
-    .lightbox img {
-      max-width: 90%;
-      max-height: 90%;
+    .lightbox > img {
+      flex: 1;
+      min-width: 0;
+      max-height: 85vh;
       border-radius: 4px;
       object-fit: contain;
     }
     .lb-arrow {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 2em;
-      color: #fff;
+      flex-shrink: 0;
+      align-self: stretch;
       background: rgba(0,0,0,0.4);
       border: none;
       cursor: pointer;
-      padding: 8px 14px;
-      border-radius: 4px;
+      padding: 0 14px;
       user-select: none;
       z-index: 201;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .lb-arrow:hover { background: rgba(0,0,0,0.65); }
-    .lb-prev { left: 16px; }
-    .lb-next { right: 16px; }
+    .lb-arrow img { width: 20px; height: 20px; display: block; filter: invert(1); }
+    .lb-next img { transform: scaleX(-1); }
     .lb-scene-badge {
       position: absolute;
       top: 14px;
@@ -776,6 +866,9 @@
       <button class="btn-icon" id="toggle-images-btn" data-tooltip="All recordings">
         <img id="images-filter-icon" src="sidebar-icons/darkMode-allImages.svg" alt="">
       </button>
+      <button class="btn-icon" id="starred-filter-btn" data-tooltip="Starred only">
+        <img src="sidebar-icons/star.svg" alt="">
+      </button>
       <button class="btn-icon" id="dark-mode-btn" data-tooltip="Toggle theme">
         <img id="theme-icon" src="sidebar-icons/darkMode-themeToggle.svg" alt="">
       </button>
@@ -784,7 +877,7 @@
   </div>
 
   <div class="filter-bar">
-    <input type="text" id="filter-hostname" placeholder="Filter by hostname, session ID, or notes...">
+    <input type="text" id="filter-hostname" placeholder="Filter by hostname, sessionID, or notes...">
     <select id="filter-provider">
       <option value="">All providers</option>
     </select>
@@ -803,6 +896,10 @@
     <span class="view-toggle" data-view="images" id="view-images">
       <span id="stats-images">0</span> images
     </span>
+    <span class="stats-separator">•</span>
+    <span class="view-toggle" data-view="notes" id="view-notes">
+      <span id="stats-notes">0</span> <span id="stats-notes-label">notes</span>
+    </span>
   </div>
 
   <div class="session-list" id="session-list">
@@ -819,7 +916,7 @@
   <!-- Detail overlay -->
   <div class="detail-overlay hidden" id="detail-overlay">
     <div class="detail-header">
-      <button class="back-btn" id="back-btn">←</button>
+      <button class="back-btn" id="back-btn"><img src="sidebar-icons/caret-left.svg" alt="Back"></button>
       <span class="detail-title" id="detail-title"></span>
       <button class="btn-sm primary" id="detail-export-btn">Export</button>
     </div>
@@ -839,10 +936,14 @@
 
   <!-- Lightbox -->
   <div class="lightbox hidden" id="lightbox">
-    <button class="lb-arrow lb-prev" id="lb-prev">&#8592;</button>
+    <button class="lb-arrow lb-prev" id="lb-prev"><img src="sidebar-icons/caret-left.svg" alt="Previous"></button>
     <img id="lightbox-img" src="" alt="">
-    <button class="lb-arrow lb-next" id="lb-next">&#8594;</button>
+    <button class="lb-arrow lb-next" id="lb-next"><img src="sidebar-icons/caret-left.svg" alt="Next"></button>
     <div class="lb-scene-badge" id="lb-scene-badge" style="display:none">Scene capture</div>
+    <div class="lb-caption-wrap">
+      <textarea id="lb-caption-input" class="lb-caption-input" placeholder="Add caption…" rows="2"></textarea>
+      <button class="lb-caption-save" id="lb-caption-save">Save</button>
+    </div>
   </div>
 
   <!-- Too-narrow overlay: shown by body.too-narrow class when sidebar < 283px -->

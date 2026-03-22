@@ -4,7 +4,7 @@
 
 const db = (() => {
   const DB_NAME = "captcha-diary-db";
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   let _db = null;
 
   // ============================================
@@ -36,6 +36,15 @@ const db = (() => {
     // Archive-wide running totals — single record keyed "global"
     if (!d.objectStoreNames.contains("archive_meta")) {
       d.createObjectStore("archive_meta", { keyPath: "key" });
+    }
+
+    // v1 → v2: add by_provider index to existing sessions stores that were created
+    // before this index existed. Fresh installs get it in the block above.
+    if (event.oldVersion < 2 && d.objectStoreNames.contains("sessions")) {
+      const store = event.target.transaction.objectStore("sessions");
+      if (!store.indexNames.contains("by_provider")) {
+        store.createIndex("by_provider", "provider", { unique: false });
+      }
     }
   }
 
@@ -151,6 +160,8 @@ const db = (() => {
       if (filter.dateRange.from && savedAt < new Date(filter.dateRange.from).getTime()) return false;
       if (filter.dateRange.to && savedAt > new Date(filter.dateRange.to).getTime()) return false;
     }
+    if (filter.hasNotes && !(record.notes && record.notes.trim())) return false;
+    if (filter.starred && !record.starred) return false;
     return true;
   }
 
@@ -162,6 +173,26 @@ const db = (() => {
     if (!session) return;
     session.notes = notes;
     return wrap(store.put(session));
+  }
+
+  async function updateSessionStarred(sessionId, starred) {
+    const d = await open();
+    const tx = d.transaction("sessions", "readwrite");
+    const store = tx.objectStore("sessions");
+    const session = await wrap(store.get(sessionId));
+    if (!session) return;
+    session.starred = starred;
+    return wrap(store.put(session));
+  }
+
+  async function updateImageCaption(imageId, caption) {
+    const d = await open();
+    const tx = d.transaction("images", "readwrite");
+    const store = tx.objectStore("images");
+    const image = await wrap(store.get(imageId));
+    if (!image) return;
+    image.caption = caption;
+    return wrap(store.put(image));
   }
 
   async function deleteSession(sessionId) {
@@ -334,11 +365,13 @@ const db = (() => {
     getSession,
     getSessions,
     updateSessionNotes,
+    updateSessionStarred,
     deleteSession,
     // Images
     saveImage,
     getImage,
     getImagesForSession,
+    updateImageCaption,
     // Cursors
     saveCursors,
     getCursors,

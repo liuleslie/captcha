@@ -62,6 +62,12 @@ let tabUrls = {};
 //      triggers when recordedAt isn't available (e.g. flushSessionForTab paths).
 let lastSaveByTab = {}; // tabId → { at: timestamp, hostname: string, recordedAt: string|null }
 
+// In-progress save guard: prevents a concurrent flushSessionForTab (triggered by
+// tabs.onRemoved) from producing a duplicate while a save-session message from the
+// content script is still awaiting IndexedDB writes for the same tab.
+// Pattern mirrors isLoading/pendingReload in sidebar.js.
+let isSaving = {}; // tabId → boolean
+
 // ============================================
 // Consent Flow
 // ============================================
@@ -321,14 +327,22 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!capturedImages[tabId]) capturedImages[tabId] = [];
     const prevCount = capturedImages[tabId].length;
 
+    const ALLOWED_IMAGE_MIMES = new Set([
+      "image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp"
+    ]);
+
     for (const img of message.images) {
+      const mimeMatch = img.dataUrl.match(/^data:([^;,]+)/);
+      const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+      // Reject non-image data URLs — a hostile page could send text/html or
+      // application/javascript as a "CAPTCHA image".
+      if (!ALLOWED_IMAGE_MIMES.has(mimeType)) continue;
+
       const urlKey = img.dataUrl.substring(0, 200);
       const exists = capturedImages[tabId].some(
         existing => existing.dataUrl.substring(0, 200) === urlKey
       );
       if (!exists) {
-        const mimeMatch = img.dataUrl.match(/^data:([^;,]+)/);
-        const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
         capturedImages[tabId].push({
           timestamp: img.timestamp,
           url: `inline:${img.type}:${img.selector}`,
@@ -489,6 +503,20 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "update-session-notes") {
     db.updateSessionNotes(message.sessionId, message.notes)
+      .then(() => sendResponse({ success: true }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "update-session-starred") {
+    db.updateSessionStarred(message.sessionId, message.starred)
+      .then(() => sendResponse({ success: true }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "update-image-caption") {
+    db.updateImageCaption(message.imageId, message.caption)
       .then(() => sendResponse({ success: true }))
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
@@ -712,6 +740,18 @@ function dataUrlToBlob(dataUrl) {
 }
 
 async function saveSession(tabId, sessionData) {
+  // Prevent duplicate saves when save-session (from content script) and
+  // flushSessionForTab (from tabs.onRemoved) overlap for the same tab.
+  // The second caller sees capturedImages still populated because the first
+  // hasn't reached its clearing step yet (it's mid-await on IndexedDB writes).
+  if (isSaving[tabId]) {
+    console.log(`[DIARY] saveSession: concurrent save blocked for tab ${tabId}`);
+    return;
+  }
+  isSaving[tabId] = true;
+
+  try {
+
   const images = capturedImages[tabId] || [];
   const cursorPoints = (aggregatedCursorPoints[tabId] || []).sort((a, b) => a.t - b.t);
 
@@ -810,6 +850,10 @@ async function saveSession(tabId, sessionData) {
   notifySidebar("session-saved", { session: sessionRecord });
   const meta = await db.getArchiveMeta();
   notifySidebar("archive-stats-updated", { totalSessions: meta.totalSessions, totalImages: meta.totalImages });
+
+  } finally {
+    delete isSaving[tabId];
+  }
 }
 
 async function flushSessionForTab(tabId, trigger) {
@@ -878,6 +922,8 @@ async function exportZip(sessionIds) {
 
   const zip = new JSZip();
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const browserInfo = await browser.runtime.getBrowserInfo().catch(() => null);
+  const browserVersion = browserInfo ? `${browserInfo.name} ${browserInfo.version}` : null;
 
   for (const sessionId of sessionIds) {
     const session = await db.getSession(sessionId);
@@ -886,12 +932,18 @@ async function exportZip(sessionIds) {
     const folderName = `${session.hostname}-${session.savedAt.slice(0, 10)}-${sessionId.slice(0, 8)}`;
     const folder = zip.folder(folderName);
 
-    // recording.json (without binary data)
-    const sessionJson = JSON.stringify({ ...session }, null, 2);
-    folder.file("recording.json", sessionJson);
-
-    // Images
+    // Images fetched first so captions can be included in recording.json metadata
     const images = await db.getImagesForSession(sessionId);
+
+    // recording.json — includes per-image metadata (index, mimeType, caption)
+    const sessionJson = JSON.stringify({
+      ...session,
+      browserVersion,
+      imageMeta: images.map(({ imageId, index, mimeType, caption }) => ({
+        imageId, index, mimeType, caption: caption || ""
+      }))
+    }, null, 2);
+    folder.file("recording.json", sessionJson);
     for (const img of images) {
       const ext = img.mimeType ? img.mimeType.split("/")[1] : "png";
       const filename = `img-${String(img.index).padStart(3, "0")}.${ext}`;

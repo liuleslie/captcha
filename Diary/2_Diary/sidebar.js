@@ -120,6 +120,7 @@ const TIME_FILTERS = [
 ];
 let totalSessions = 0;
 let totalImages = 0;
+let totalNotes = 0;
 let filteredSessionCount = null; // null = no active filter
 let filteredImageCount = null;
 let useAbsoluteTime = true;    // row timestamps: true = hh:mm, false = "x ago"
@@ -127,12 +128,13 @@ let groupTimeAbsolute = true;  // group header time ranges
 let isLoading = false;
 let pendingReload = false;
 let currentDetailSessionId = null;
-let currentView = "recordings"; // "recordings" | "images"
+let currentView = "recordings"; // "recordings" | "images" | "notes"
+let starredFilterActive = false;
 const detailBlobUrls = [];
 const cardBlobUrls = new Map(); // sessionId → [blobUrl, ...]
 
 // Lightbox navigation
-let lightboxImages   = []; // full list: { url, isSceneCapture, sessionId?, lbIndex }
+let lightboxImages   = []; // full list: { url, isSceneCapture, sessionId?, imageId?, caption?, lbIndex }
 let lbList           = []; // active navigation subset (filtered to selection when active)
 let lbIdx            = 0;
 let isGlobalLightbox = false; // true when lightbox is showing cross-session images view
@@ -248,8 +250,9 @@ function removeActiveRecordingCard(tabId) {
 function updateStatsDisplay() {
   const selIds = getCheckedSessionIds();
   const selCount = selIds.length;
-  const recEl = document.getElementById("stats-recordings");
-  const imgEl = document.getElementById("stats-images");
+  const recEl   = document.getElementById("stats-recordings");
+  const imgEl   = document.getElementById("stats-images");
+  const notesEl = document.getElementById("stats-notes");
   if (selCount > 0) {
     const selImages = [...selectedSessionMap.values()].reduce((sum, c) => sum + c, 0);
     // Use filtered counts as denominator when a filter is active
@@ -264,6 +267,9 @@ function updateStatsDisplay() {
     recEl.textContent = totalSessions;
     imgEl.textContent = totalImages;
   }
+  if (notesEl) notesEl.textContent = totalNotes;
+  const notesLabelEl = document.getElementById("stats-notes-label");
+  if (notesLabelEl) notesLabelEl.textContent = totalNotes === 1 ? "note" : "notes";
 }
 
 function setStatsBar(sessions, images) {
@@ -406,6 +412,29 @@ function applyRecentFilter(f) {
 // Session Card Rendering
 // ============================================
 
+function buildStarBtn(session) {
+  const btn = document.createElement("button");
+  btn.className = `star-btn${session.starred ? " starred" : ""}`;
+  btn.textContent = "★";
+  btn.title = session.starred ? "Unstar" : "Star";
+  btn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    session.starred = !session.starred;
+    btn.classList.toggle("starred", session.starred);
+    btn.title = session.starred ? "Unstar" : "Star";
+    await browser.runtime.sendMessage({
+      action: "update-session-starred",
+      sessionId: session.sessionId,
+      starred: session.starred
+    });
+    // In starred-only mode, remove card if just unstarred
+    if (starredFilterActive && !session.starred) {
+      btn.closest(".session-row, .notes-card")?.remove();
+    }
+  });
+  return btn;
+}
+
 function buildCardElement(session) {
   // Compact row layout for Recordings View
   const row = document.createElement("div");
@@ -439,9 +468,12 @@ function buildCardElement(session) {
   timeEl.title = "Click to toggle time format";
   timeEl.textContent = useAbsoluteTime ? formatTime(session.savedAt) : formatTimeAgo(session.savedAt);
 
+  const starBtn = buildStarBtn(session);
+
   row.appendChild(checkbox);
   row.appendChild(hostname);
   row.appendChild(badgesWrap);
+  row.appendChild(starBtn);
   row.appendChild(timeEl);
 
   // Checkbox: shift-click multi-select
@@ -677,6 +709,8 @@ async function loadPage() {
   if (hostnameFilter) filter.hostname = hostnameFilter;
   if (providerFilter) filter.provider = providerFilter;
   if (currentFilter.hasImages) filter.hasImages = currentFilter.hasImages;
+  if (currentView === "notes") filter.hasNotes = true;
+  if (starredFilterActive) filter.starred = true;
   if (currentTimeFilter) {
     if (currentTimeFilter.timeFrom) filter.timeFrom = currentTimeFilter.timeFrom;
     if (currentTimeFilter.timeTo)   filter.timeTo   = currentTimeFilter.timeTo;
@@ -690,7 +724,7 @@ async function loadPage() {
   const list = document.getElementById("session-list");
 
   // Clear existing content, revoking blob URLs
-  for (const group of list.querySelectorAll(".session-group, .date-group")) {
+  for (const group of list.querySelectorAll(".session-group, .date-group, .notes-card")) {
     for (const el of group.querySelectorAll(".session-row, img")) {
       const sid = el.dataset?.sessionId;
       if (sid) {
@@ -721,16 +755,24 @@ async function loadPage() {
       // archive-stats-updated port messages).
       totalSessions = sessions.length;
       totalImages = sessions.reduce((sum, s) => sum + (s.imageCount || 0), 0);
+      totalNotes = sessions.filter(s => s.notes && s.notes.trim()).length;
     }
     updateStatsDisplay();
 
     if (sessions.length === 0) {
-      document.getElementById("empty-state").style.display = "block";
+      const es = document.getElementById("empty-state");
+      es.style.display = "block";
+      es.querySelector("h3").textContent = currentView === "notes" ? "No notes yet" : "No recordings yet";
+      es.querySelector("p").textContent  = currentView === "notes"
+        ? "Open a recording and add notes in the detail view."
+        : "Visit tabs with CAPTCHAs while the extension is active to start building your archive.";
     } else {
       document.getElementById("empty-state").style.display = "none";
 
       if (currentView === "recordings") {
         renderRecordingsView(sessions, list);
+      } else if (currentView === "notes") {
+        renderNotesView(sessions, list);
       } else {
         await renderImagesView(sessions, list);
       }
@@ -748,6 +790,52 @@ function renderRecordingsView(sessions, list) {
   for (const group of groupByDate(sessions)) {
     list.appendChild(buildGroupPanel(group));
   }
+}
+
+function renderNotesView(sessions, list) {
+  for (const session of sessions) {
+    list.appendChild(buildNotesCard(session));
+  }
+}
+
+function buildNotesCard(session) {
+  const card = document.createElement("div");
+  card.className = "notes-card";
+  card.dataset.sessionId = session.sessionId;
+
+  const top = document.createElement("div");
+  top.className = "notes-card-top";
+
+  const hostname = document.createElement("span");
+  hostname.className = "row-hostname";
+  hostname.textContent = session.hostname || "—";
+
+  const badge = document.createElement("span");
+  badge.className = "row-badges";
+  badge.innerHTML = `<span class="badge provider">${providerLabel(session.provider)}</span>`;
+
+  const starBtn = buildStarBtn(session);
+
+  const timeEl = document.createElement("span");
+  timeEl.className = "row-time";
+  timeEl.textContent = useAbsoluteTime ? formatTime(session.savedAt) : formatTimeAgo(session.savedAt);
+
+  top.appendChild(hostname);
+  top.appendChild(badge);
+  top.appendChild(starBtn);
+  top.appendChild(timeEl);
+
+  const preview = document.createElement("div");
+  preview.className = "notes-card-preview";
+  preview.textContent = session.notes;
+
+  card.appendChild(top);
+  card.appendChild(preview);
+  card.addEventListener("click", (e) => {
+    if (e.target.classList.contains("star-btn")) return;
+    openDetail(session.sessionId);
+  });
+  return card;
 }
 
 async function renderImagesView(sessions, list) {
@@ -816,7 +904,7 @@ async function loadImageThumbnail(imageId, sessionId, index) {
       img.src = url;
       img.alt = `Image ${index + 1}`;
       const globalIdx = lightboxImages.length;
-      lightboxImages.push({ url, isSceneCapture: false, sessionId, lbIndex: globalIdx });
+      lightboxImages.push({ url, isSceneCapture: false, sessionId, imageId, lbIndex: globalIdx, caption: resp.image.caption || "" });
       img.dataset.lbIndex = globalIdx;
       img.addEventListener("click", () => openLightbox(url, globalIdx));
 
@@ -1120,7 +1208,7 @@ async function openDetail(sessionId) {
             detailBlobUrls.push(url);
             const isScene = (imgResp.image.url || "").startsWith("scene-capture:");
             const idx = lightboxImages.length;
-            lightboxImages.push({ url, isSceneCapture: isScene, lbIndex: idx });
+            lightboxImages.push({ url, isSceneCapture: isScene, imageId, caption: imgResp.image.caption || "", lbIndex: idx });
 
             const wrap = document.createElement("div");
             wrap.className = "detail-img-wrap";
@@ -1174,7 +1262,10 @@ async function openDetail(sessionId) {
     }
 
   } catch (e) {
-    body.innerHTML = `<p style='color:#ef4444;padding:20px 0'>Error loading session: ${e.message}</p>`;
+    const errP = document.createElement("p");
+    errP.style.cssText = "color:#ef4444;padding:20px 0";
+    errP.textContent = `Error loading session: ${e.message}`;
+    body.appendChild(errP);
   }
 }
 
@@ -1211,14 +1302,17 @@ function openLightbox(_url, globalIdx) {
   const cur = lbList[lbIdx];
   document.getElementById("lightbox-img").src = cur.url;
   document.getElementById("lb-scene-badge").style.display = cur.isSceneCapture ? "block" : "none";
+  document.getElementById("lb-caption-input").value = cur.caption || "";
   document.getElementById("lightbox").classList.remove("hidden");
   setLbActive(cur);
 }
 
 function closeLightbox() {
+  clearTimeout(captionDebounce);
   document.getElementById("lightbox").classList.add("hidden");
   document.getElementById("lightbox-img").src = "";
   document.getElementById("lb-scene-badge").style.display = "none";
+  document.getElementById("lb-caption-input").value = "";
   setLbActive(null);
 }
 
@@ -1228,12 +1322,33 @@ function navigateLightbox(dir) {
   const cur = lbList[lbIdx];
   document.getElementById("lightbox-img").src = cur.url;
   document.getElementById("lb-scene-badge").style.display = cur.isSceneCapture ? "block" : "none";
+  document.getElementById("lb-caption-input").value = cur.caption || "";
   setLbActive(cur);
 }
 
 document.getElementById("lightbox").addEventListener("click", (e) => {
   if (e.target.id === "lb-prev" || e.target.id === "lb-next") return;
+  if (e.target.id === "lb-caption-input" || e.target.id === "lb-caption-save") return;
   closeLightbox();
+});
+
+let captionDebounce = null;
+async function saveLightboxCaption() {
+  const cur = lbList[lbIdx];
+  if (!cur || !cur.imageId) return;
+  cur.caption = document.getElementById("lb-caption-input").value;
+  await browser.runtime.sendMessage({ action: "update-image-caption", imageId: cur.imageId, caption: cur.caption });
+}
+
+document.getElementById("lb-caption-input").addEventListener("click", (e) => e.stopPropagation());
+document.getElementById("lb-caption-input").addEventListener("input", () => {
+  clearTimeout(captionDebounce);
+  captionDebounce = setTimeout(saveLightboxCaption, 800);
+});
+document.getElementById("lb-caption-save").addEventListener("click", (e) => {
+  e.stopPropagation();
+  clearTimeout(captionDebounce);
+  saveLightboxCaption();
 });
 
 document.getElementById("lb-prev").addEventListener("click", (e) => {
@@ -1301,7 +1416,7 @@ function updateExportSelectedVisibility() {
   const btn = document.getElementById("export-all-btn");
 
   if (count > 0) {
-    btn.textContent = `Export selected (${count})`;
+    btn.textContent = `Selected (${count}) ▾`;
     btn.dataset.mode = "selected";
   } else {
     btn.textContent = "Export all";
@@ -1539,6 +1654,12 @@ function updateImagesFilterIcon() {
   document.getElementById("images-filter-icon").src = `sidebar-icons/${imageFilterIcons[imageFilterIndex]}`;
 }
 
+document.getElementById("starred-filter-btn").addEventListener("click", () => {
+  starredFilterActive = !starredFilterActive;
+  document.getElementById("starred-filter-btn").classList.toggle("active", starredFilterActive);
+  loadPage();
+});
+
 document.getElementById("toggle-images-btn").addEventListener("click", () => {
   imageFilterIndex = (imageFilterIndex + 1) % imageFilterStates.length;
   const state = imageFilterStates[imageFilterIndex];
@@ -1571,7 +1692,7 @@ async function init() {
     const w = entries[0].contentRect.width;
     // document.body.classList.toggle("narrow", w >= 300 && w <= 350);
     document.body.classList.toggle("narrow", w <= 350);
-    document.body.classList.toggle("too-narrow", w < 280);
+    document.body.classList.toggle("too-narrow", w < 300);
   });
   resizeObs.observe(document.body);
 

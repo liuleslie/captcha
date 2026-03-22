@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "CAPTCHA Diary",
-  "version": "0.1",
+  "version": "0.2.2",
   "description": "Persistent in-browser CAPTCHA archive: auto-captures images, cursor traces, and DOM data across visited tabs.",
 
   "browser_specific_settings": {
@@ -47,7 +47,7 @@
 
   "sidebar_action": {
     "default_panel": "sidebar.html",
-    "default_title": "CAPTCHA Archive",
+    "default_title": "CAPTCHA Diary",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"

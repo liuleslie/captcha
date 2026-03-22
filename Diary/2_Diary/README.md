@@ -10,6 +10,7 @@ Either manually selecting the “end” button or closing the tab stops the reco
 
 ## What’s collected
 - URL of website that served the CAPTCHA
+- your browser and its version number
 - session ID
     - used to link each CAPTCHA encounter to a browser tab; useful if inspecting the detailed `recording.json`
 - inferred CAPTCHA provider
