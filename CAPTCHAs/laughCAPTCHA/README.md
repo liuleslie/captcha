@@ -32,10 +32,11 @@ The median F0 of both recordings is also compared as a ratio: a perfect pitch ma
 3. The final round score is 75% mScore + 25% pScore. A score of 50 or above is required to advance in the first seven rounds.
 
 
-### Libraries
+### Libraries, Resources, Tools
 * [Meyda.js](https://wac.ircam.fr/pdf/wac15_submission_17.pdf) for audio feature extraction
 * WebAudio API to access audio buffer
 * WaveSurfer.js to visualize waveforms.
+* ElevenLabs for target laugh generation.
 
 
 ## Iterations, Obstacles, Lessons
