@@ -8,15 +8,50 @@
         <!-- <base target="_blank"> -->
         <style>
             a { color:blue; text-decoration:1px blue solid underline; text-underline-offset:2px }
-            a:hover { color:red; }
-            a:visited { color:purple }
+            a:hover { color:red; text-decoration:none }
+            a:visited { color:purple; text-decoration:none }
             body { max-width:70vw }
+            img { display:block; width:600px }
+            h1 { font-size:1.5em }
+            h2 { font-size:1.25em }
+            #meets { margin-top:3em }
+            #meets+ul, article { margin-bottom:3em }
             @media (max-width:600px) {
                 body { max-width:100vw }
+                img { width:100% }
             }
         </style>
     </head>
     <body>
-        <p>Welcome to CAPTCHA Club. CAPTCHA Club’s member numbers are mighty; any user who has completed a CAPTCHA (often colloquially known as the “I’m Not a Robot” test) is automatically enrolled into this Club. This means that Club members include both humans (working as human computers) and computer programs (bots).</p>
+        <h1 id="welcome">Welcome to CAPTCHA Club.</h1>
+        <p>CAPTCHA Club’s member numbers are mighty; any user who has completed a <a href="https://en.wikipedia.org/wiki/CAPTCHA">CAPTCHA</a> (often colloquially known as the “I’m Not a Robot” test) is automatically enrolled into this Club. This means that Club members include both humans (working as human computers) and computer programs (bots, at times perhaps equipped with machine learning enhancements).</p>
+        
+        <h1 id="meets">Club meets</h1>
+        <ul>
+            <li><a href="#260405">April 5, 2026</a> online</li>
+            <li><a href="#260410">April 10, 2026</a> offline</li>
+        </ul>
+        <hr>
+
+        <article id="260405">
+            <h2>April 5, 2026 (Sunday)</h2>
+            <p>10–11.30am Pacific == 1–2.30pm Eastern Time, <a href="https://whereby.com/toadcove">Online</a></p>
+            <p>We will convene on Sunday to collect CAPTCHAs together, using local member IFDE’s <a href="https://addons.mozilla.org/en-US/firefox/addon/captcha-diary/">CAPTCHA Diary Firefox extension</a>. IFDE will share weird and splendid sights and images they have encountered over recent months of Diarying, as well as souvenirs for users to keep with them in future web browsing.</p>
+            <ul>Guiding Questions
+                <li>Can you recall the most recent CAPTCHA you happened across?</li>
+                <li>If that CAPTCHA was a room, what temperature would it be?</li>
+                <li>If that CAPTCHA was a texture, how would it feel?</li>
+                <li>What adjectives do you assume CAPTCHAs are associated with? Are there any that you wish were more popular?</li>
+            </ul>
+            <details>
+                <summary>Poster</summary>
+                <img src="https://images.are.na/eyJidWNrZXQiOiJhcmVuYV9pbWFnZXMiLCJrZXkiOiI0NDg1NzM0OS9vcmlnaW5hbF82ZTRiYTYwMzg1ODU2YTU1ODRkZWZjMjIyNTVhNWQwYS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjI0MDAsImhlaWdodCI6MjQwMCwiZml0IjoiaW5zaWRlIiwid2l0aG91dEVubGFyZ2VtZW50Ijp0cnVlfSwid2VicCI6eyJxdWFsaXR5Ijo3NX0sImpwZWciOnsicXVhbGl0eSI6NzV9LCJyb3RhdGUiOm51bGx9fQ==" alt="Black permanent marker drawing of a poster with bubble letters on a piece of white paper. the paper is placed atop a wooden table, with pens and a pencil nearby.">
+            </details>
+        </article>
+
+        <article id="260410">
+            <h2>April 10, 2026 (Saturday)</h2>
+            <p>TBA, USA</p>
+        </article>
     </body>
 </html>
