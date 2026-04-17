@@ -13,10 +13,10 @@ This thesis surfaces sociotechnical themes latent in contemporary CAPTCHA work s
 2. What does tracing the flow of data involved in CAPTCHA work reveal?
 3. How does a CAPTCHA organize different human computation markets; how do they interact?
 
+<!-- 
 ## Artifacts
 
 The focus of this thesis is on the nature of CAPTCHA as a human computation (crowdsourcing) technology. Older paradigms of CAPTCHA work assume some intrinsic difference between machine and human perception. The current predominant (tracking-based) schemes do away with this and instead evaluate users in relation to other users’ performance: the metaphysical question of “are you a human” is set aside in favor of a regime of data collection that combines browser telemetry and user action (e.g. cursor movement) analysis to determine one’s validity as a user.
-<!-- 
 ### A1, CAPTCHA Diary
 
 Started as a personal phenomenological diary of CAPTCHA encounters (Glanceback-inspired) that has since morphed into a data collection instrument. The browser extension captures CAPTCHA imagery and metadata during the user’s everyday browsing. 
