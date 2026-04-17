@@ -2,8 +2,10 @@
 
 MSCD thesis repository. Looser spillage on [TiddlyWiki](https://densegut.tiddlyhost.com/).
 
-<!-- ## Abstract
-<> -->
+## Abstract
+
+This thesis surfaces sociotechnical themes latent in contemporary CAPTCHA work since 2017 that underlie norms of personal engagement and relationships with technology. Building on extant research across cybersecurity, human-computer interaction, and media-informed science and technology studies, it situates the CAPTCHA as both security feature and piecemeal labor crowdsourcing system, stretching the interaction paradigms of CAPTCHAs as a form. The goal is to deliver a de-scription of CAPTCHAs, attending to the tensions and relationality amongst CAPTCHA developers, bot developers/spammers, and human computers. Two interventions structure this research: a _CAPTCHA Diary_ systematically logs individual encounters with predominant CAPTCHA schemes, making tangible the volume of everyday checkpoints and serving as a means to meditate on one’s embodied experience of this security regime. Second, a series of _speculative CAPTCHAs_ function as design probes to reflect on CAPTCHA work’s scalar implications and reconsider inscribed expectations. Rather than proposing technical optimizations, this thesis strives to offer an ethos and practical account for designers and technologists during commonplace interactions with similarly opaque human computation systems. 
+
 
 ## Research Questions (RQ)
 
