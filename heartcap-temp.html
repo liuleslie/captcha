@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>heartCAPTCHA</title>
+  <script>var t=localStorage.getItem('heartcap-theme');if(t)document.documentElement.dataset.theme=t;</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    [hidden] { display: none !important; }
+
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
+    /* ── custom properties ── */
+
+    :root {
+      --bg:         black;
+      --surface:    #0e0e0e;
+      --muted:      #959595;
+      --fg:         white;
+      --border:     rgba(255,255,255,0.20);
+      --btn-fg:     white;
+      --btn-bg:     #202020;
+      --overlay-bg: rgba(0,0,0,0.60);
+      --focus-ring: rgba(0,230,118,0.7);
+      --pulse:      #00e676;
+      --pulse-dim:  rgba(0,230,118,0.07);
+      --warm:       #ff8f00;
+      --warm-dim:   rgba(255,143,0,0.07);
+    }
+
+    :root[data-theme="light"] {
+      --bg:         white;
+      --surface:    #efefed;
+      --muted:      #595959;
+      --fg:         #1a1a1a;
+      --border:     rgba(0,0,0,0.12);
+      --btn-fg:     #1a1a1a;
+      --btn-bg:     #e8e8e6;
+      --overlay-bg: rgba(247,247,245,0.94);
+      --focus-ring: rgba(0,160,80,0.75);
+      --pulse:      #00963f;
+      --pulse-dim:  rgba(0,150,63,0.08);
+      --warm:       #c46800;
+      --warm-dim:   rgba(196,104,0,0.08);
+    }
+
+    :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+
+    /* ── base ── */
+
+    html, body { width: 100%; height: 100%; background: var(--bg); color: var(--fg); font-family: serif; }
+
+    a, a:visited { color: var(--fg); text-decoration: underline; }
+    a:hover { color: var(--muted); text-decoration: none; }
+
+    /* ── overlay ── */
+
+    .overlay {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: var(--bg); color: var(--fg);
+      gap: 1.6rem; padding: 2rem; text-align: center; z-index: 40;
+    }
+
+    /* ── app shell ── */
+
+    #app { display: flex; flex-direction: column; min-height: 100vh; width: 100%; }
+
+    /* ── topbar ── */
+
+    #topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 min(10em, 5vw); height: 38px; flex-shrink: 0;
+      background: var(--btn-bg); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 50;
+    }
+
+    #topbar-left {
+      display: flex; align-items: center; gap: 0.8rem; flex: 1;
+      color: var(--muted); font-family: sans-serif; font-size: 0.8rem;
+    }
+
+    #topbar-right {
+      display: flex; align-items: center; gap: 0.6rem; flex: 1; justify-content: flex-end;
+    }
+
+    /* ── camera toggle ── */
+
+    #btn-camera { display: flex; align-items: center; }
+    #btn-camera .camera-icon { display: none; }
+
+    @media (max-width: 540px) {
+      #topbar-title              { display: none; }
+      #btn-camera-label          { display: none; }
+      #btn-camera .camera-icon:not([hidden]) { display: block; }
+    }
+
+    #topbar button {
+      padding: 0; border: none; background: none; color: inherit;
+      font-family: serif; font-size: inherit; cursor: pointer; transition: opacity 0.15s;
+    }
+    #topbar button:hover  { opacity: 0.5; }
+    #topbar button:active { opacity: 0.3; }
+
+    /* ── main ── */
+
+    #main {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      gap: 0.9rem; padding: 1.2rem 1rem 2rem;
+    }
+
+    /* ── status / prompt ── */
+
+    #prompt-overlay { text-align: center; }
+
+    #message {
+      display: block;
+      font-size: clamp(0.9em, 2.8vw, 1.4em);
+      color: var(--fg);
+    }
+
+    #info {
+      display: block;
+      font-family: sans-serif; font-size: 0.72rem; letter-spacing: 0.06em;
+      color: var(--muted); margin-top: 0.3em; min-height: 1.2em;
+    }
+
+    /* ── video pair ── */
+
+    #videoContainer { display: flex; justify-content: center; gap: 16px; }
+
+    #videoElement, #amplifiedVideoElement {
+      display: block; width: 200px; height: 150px;
+      border: 1px solid var(--border);
+      transform: scaleX(-1); object-fit: cover;
+      background: var(--surface);
+    }
+
+    #canvas { display: none; }
+
+    .video-caption {
+      font-family: sans-serif; font-size: 0.62rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--muted);
+      text-align: center; margin-top: 4px;
+    }
+
+    /* ── charts ── */
+
+    #chartContainer, #pulseChartContainer {
+      width: 100%; max-width: 580px;
+    }
+
+    #pulseChart { display: block; width: 100%; }
+
+    /* ── data points info ── */
+
+    #dataPointsInfo {
+      font-family: sans-serif; font-size: 0.72rem;
+      color: var(--muted); text-align: center;
+    }
+
+    /* ── pulse log section ── */
+
+    #pulse-log-section { width: 100%; max-width: 580px; }
+
+    #pulse-log-section h2 {
+      font-family: sans-serif; font-weight: normal;
+      font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 8px;
+    }
+
+    #pulse-log {
+      display: flex; flex-direction: column; gap: 4px;
+      max-height: 280px; overflow-y: auto; padding: 2px;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+
+    .pls-row {
+      display: flex; align-items: stretch; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 5px 8px; transition: border-color 0.2s;
+    }
+    .pls-row.pls-active { border-color: var(--pulse); }
+
+    .pls-meta {
+      flex-shrink: 0; width: 54px;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      font-family: monospace; font-size: 0.7em; color: var(--muted); line-height: 1.6;
+    }
+
+    .pls-bpm { font-size: 1.25em; font-weight: bold; color: var(--pulse); line-height: 1.2; }
+    .pls-canvas { flex: 1; height: 52px; display: block; }
+
+    /* ── global button ── */
+
+    button {
+      background: var(--btn-bg); border: 1px solid var(--border);
+      color: var(--btn-fg); font-family: sans-serif; padding: 4px 16px;
+      cursor: pointer; transition: opacity 0.12s;
+    }
+    button:hover  { opacity: 0.5; }
+    button:active { opacity: 0.25; }
+    button:disabled { opacity: 0.22; cursor: default; pointer-events: none; }
+
+    /* ── about panel ── */
+
+    #about-panel { z-index: 55; }
+    #about-panel p { max-width: 480px; font-size: clamp(0.85rem,2vw,1rem); line-height: 1.4; }
+    #btn-back { margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+
+  <div id="announce" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
+  <div id="app">
+
+    <header id="topbar">
+      <span id="topbar-left">
+        <span id="bpm-live" aria-live="polite" aria-atomic="true"></span>
+      </span>
+      <span id="topbar-title" aria-hidden="true">heartCAPTCHA</span>
+      <span id="topbar-right">
+        <button id="btn-camera" aria-label="turn camera off">
+          <span id="btn-camera-label">camera on</span>
+          <svg id="camera-icon-on" class="camera-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M8.73178 3.35982C8.92177 3.13182 9.20322 3 9.5 3H14.5C14.7968 3 15.0782 3.13182 15.2682 3.35982L17.4684 6H20C20.7957 6 21.5587 6.31607 22.1213 6.87868C22.6839 7.44129 23 8.20435 23 9V18C23 18.7957 22.6839 19.5587 22.1213 20.1213C21.5587 20.6839 20.7957 21 20 21H4C3.20435 21 2.44129 20.6839 1.87868 20.1213C1.31607 19.5587 1 18.7956 1 18V9C1 8.20435 1.31607 7.44129 1.87868 6.87868C2.44129 6.31607 3.20435 6 4 6H6.53162L8.73178 3.35982ZM9.96837 5L7.76822 7.64018C7.57823 7.86818 7.29678 8 7 8H4C3.73478 8 3.48043 8.10536 3.29289 8.29289C3.10536 8.48043 3 8.73478 3 9V18C3 18.2652 3.10536 18.5196 3.29289 18.7071C3.48043 18.8946 3.73478 19 4 19H20C20.2652 19 20.5196 18.8946 20.7071 18.7071C20.8946 18.5196 21 18.2652 21 18V9C21 8.73478 20.8946 8.48043 20.7071 8.29289C20.5196 8.10536 20.2652 8 20 8H17C16.7032 8 16.4218 7.86818 16.2318 7.64018L14.0316 5H9.96837ZM12 11C10.8954 11 10 11.8954 10 13C10 14.1046 10.8954 15 12 15C13.1046 15 14 14.1046 14 13C14 11.8954 13.1046 11 12 11ZM8 13C8 10.7909 9.79086 9 12 9C14.2091 9 16 10.7909 16 13C16 15.2091 14.2091 17 12 17C9.79086 17 8 15.2091 8 13Z"/>
+          </svg>
+          <svg id="camera-icon-off" class="camera-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M1.29289 1.29289C1.68342 0.902369 2.31658 0.902369 2.70711 1.29289L22.7071 21.2929C23.0976 21.6834 23.0976 22.3166 22.7071 22.7071C22.3166 23.0976 21.6834 23.0976 21.2929 22.7071L19.5858 21H4C3.20435 21 2.44129 20.6839 1.87868 20.1213C1.31607 19.5587 1 18.7957 1 18V9C1 8.20435 1.31607 7.44129 1.87868 6.87868C2.44129 6.31607 3.20435 6 4 6H4.58579L1.29289 2.70711C0.902369 2.31658 0.902369 1.68342 1.29289 1.29289ZM6.58579 8H4C3.73478 8 3.48043 8.10536 3.29289 8.29289C3.10536 8.48043 3 8.73478 3 9V18C3 18.2652 3.10536 18.5196 3.29289 18.7071C3.48043 18.8946 3.73478 19 4 19H17.5858L14.6178 16.032C14.3011 16.3172 13.9404 16.5504 13.5489 16.7222C13.0593 16.937 12.5316 17.0516 11.997 17.059C11.4624 17.0664 10.9318 16.9666 10.4364 16.7654C9.94104 16.5643 9.49103 16.2659 9.11298 15.8878C8.73492 15.5097 8.4365 15.0597 8.23533 14.5644C8.03417 14.069 7.93436 13.5383 7.94179 13.0038C7.94923 12.4692 8.06376 11.9415 8.27862 11.4519C8.45043 11.0604 8.6836 10.6997 8.96874 10.3829L6.58579 8ZM10.3868 11.8011C10.275 11.9393 10.1818 12.0921 10.11 12.2556C10.0026 12.5004 9.94532 12.7643 9.9416 13.0316C9.93788 13.2989 9.98779 13.5642 10.0884 13.8119C10.189 14.0596 10.3382 14.2846 10.5272 14.4736C10.7162 14.6626 10.9412 14.8118 11.1889 14.9124C11.4366 15.013 11.7019 15.0629 11.9692 15.0592C12.2365 15.0555 12.5004 14.9982 12.7451 14.8908C12.9087 14.819 13.0615 14.7258 13.1997 14.6139L10.3868 11.8011ZM8.5 4C8.5 3.44772 8.94772 3 9.5 3H14.5C14.7968 3 15.0782 3.13182 15.2682 3.35982L17.4684 6H20C20.7957 6 21.5587 6.31607 22.1213 6.87868C22.6839 7.44129 23 8.20435 23 9V16.5C23 17.0523 22.5523 17.5 22 17.5C21.4477 17.5 21 17.0523 21 16.5V9C21 8.73478 20.8946 8.48043 20.7071 8.29289C20.5196 8.10536 20.2652 8 20 8H17C16.7032 8 16.4218 7.86818 16.2318 7.64018L14.0316 5H9.5C8.94772 5 8.5 4.55228 8.5 4Z"/>
+          </svg>
+        </button>
+        <button id="btn-theme" aria-label="switch to light mode">light</button>
+        <button id="btn-about" aria-label="open about">about</button>
+      </span>
+    </header>
+
+    <main id="main">
+
+      <div id="prompt-overlay">
+        <p id="message" aria-live="polite" aria-atomic="true">Initializing…</p>
+        <p id="info"></p>
+      </div>
+
+      <div id="videoContainer">
+        <div>
+          <video id="videoElement" autoplay playsinline aria-label="camera feed"></video>
+          <p class="video-caption">camera feed</p>
+        </div>
+        <div>
+          <canvas id="amplifiedVideoElement" aria-label="amplified pulse view"></canvas>
+          <p class="video-caption">pulse amplified</p>
+        </div>
+      </div>
+
+      <canvas id="canvas" aria-hidden="true"></canvas>
+
+      <div id="chartContainer">
+        <!-- <canvas id="heartRateChart"></canvas> -->
+      </div>
+      <div id="pulseChartContainer">
+        <canvas id="pulseChart"></canvas>
+      </div>
+
+      <!-- stubs heartcam.js binds to -->
+      <button id="clearLogButton"    hidden aria-hidden="true"></button>
+      <button id="downloadLogButton" hidden aria-hidden="true"></button>
+
+      <p id="dataPointsInfo" aria-live="polite">data points sampled: 0</p>
+
+      <section id="pulse-log-section" aria-label="pulse recording log">
+        <h2>recording log</h2>
+        <div id="pulse-log" role="list"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- about panel -->
+  <div id="about-panel" class="overlay" role="dialog" aria-modal="true"
+       aria-labelledby="about-heading" hidden>
+    <h2 id="about-heading" class="sr-only">About heartCAPTCHA</h2>
+    <p>heartCAPTCHA verifies human presence by detecting a heartbeat through your webcam. Place a fingertip over your camera lens — the system reads subtle color changes caused by blood flow.</p>
+    <p>All signal processing runs locally in your browser. No video or biometric data is transmitted or stored.</p>
+    <p>Based on HeartCam by Zijun Yang, Jingjia Peng, Mo Yang, and Yijun Wang (EECS 442).</p>
+    <button id="btn-back" aria-label="close about">close</button>
+  </div>
+
+  <!-- heartcam core — exposes fingerDetected, smoothedHeartRate, pulseHistory -->
+  <script src="heartcam.js"></script>
+
+  <!-- jsfeat for EVM pyramid primitives -->
+  <!-- <script src="../pulse/evm-master/jsfeat.js"></script> -->
+
+  <!-- pulse log — reads heartcam.js globals each rAF -->
+  <script>
+  (function () {
+    'use strict';
+
+    var logEl           = document.getElementById('pulse-log');
+    var bpmLive         = document.getElementById('bpm-live');
+    var currentSession  = null;
+    var lastFingerState = false;
+    var lastCapturedTime = 0;
+
+    function createRow(session) {
+      var row = document.createElement('div');
+      row.className = 'pls-row pls-active';
+      row.setAttribute('role', 'listitem');
+
+      var meta = document.createElement('div');
+      meta.className = 'pls-meta';
+      var t = new Date(session.startTime);
+      meta.innerHTML =
+        '<span class="pls-bpm">—</span>' +
+        t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      session.metaEl = meta;
+
+      var cvs = document.createElement('canvas');
+      cvs.className = 'pls-canvas';
+      session.canvas = cvs;
+
+      row.appendChild(meta);
+      row.appendChild(cvs);
+      session.rowEl = row;
+      logEl.appendChild(row);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function themeColor(live) {
+      var light = document.documentElement.dataset.theme === 'light';
+      if (live) return light ? '#00963f' : '#00e676';
+      return light ? '#c46800' : '#ff8f00';
+    }
+
+    function drawSession(session, isLive) {
+      var cvs = session.canvas;
+      var src = session.entries;
+      if (!cvs || src.length < 2) return;
+
+      var W = cvs.clientWidth || 500, H = 52;
+      if (cvs.width !== W) cvs.width = W;
+      if (cvs.height !== H) cvs.height = H;
+
+      var pad = { t: 4, r: 8, b: 4, l: 8 };
+      var pW = W - pad.l - pad.r, pH = H - pad.t - pad.b;
+
+      var entries, tMin, tMax;
+      if (isLive) {
+        var now = Date.now();
+        tMin = now - 10000; tMax = now;
+        entries = src.filter(function (e) { return e.time >= tMin; });
+      } else {
+        entries = src;
+        tMin = src[0].time; tMax = src[src.length - 1].time;
+      }
+      if (entries.length < 2 || tMax === tMin) return;
+
+      var span = tMax - tMin;
+      var xOf = function (t) { return pad.l + (t - tMin) / span * pW; };
+      var yOf = function (v) { return pad.t + (1 - v) * pH; };
+
+      var color = themeColor(isLive);
+      var ctx = cvs.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.strokeStyle = 'rgba(127,127,127,0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad.l, pad.t + pH);
+      ctx.lineTo(pad.l + pW, pad.t + pH);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
+      for (var i = 0; i < entries.length; i++) {
+        var x = xOf(entries[i].time), y = yOf(entries[i].value);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      ctx.lineTo(xOf(entries[entries.length - 1].time), pad.t + pH);
+      ctx.lineTo(xOf(entries[0].time), pad.t + pH);
+      ctx.closePath();
+      ctx.fillStyle = isLive ? 'rgba(0,230,118,0.07)' : 'rgba(255,143,0,0.07)';
+      ctx.fill();
+
+      if (!isLive) {
+        var dur = ((tMax - tMin) / 1000).toFixed(1) + 's';
+        ctx.fillStyle = 'rgba(127,127,127,0.45)';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(dur, pad.l + pW - 2, pad.t + pH - 1);
+      }
+    }
+
+    function tick() {
+      requestAnimationFrame(tick);
+
+      var nowFinger = fingerDetected;
+
+      if (nowFinger && !lastFingerState) {
+        lastCapturedTime = Date.now();
+        currentSession = { startTime: Date.now(), entries: [] };
+        createRow(currentSession);
+      }
+
+      if (!nowFinger && lastFingerState && currentSession) {
+        currentSession.rowEl.classList.remove('pls-active');
+        drawSession(currentSession, false);
+        var bpm = smoothedHeartRate;
+        currentSession.metaEl.querySelector('.pls-bpm').textContent =
+          (bpm && isFinite(bpm)) ? bpm.toFixed(0) : '?';
+        currentSession = null;
+        if (bpmLive) bpmLive.textContent = '';
+      }
+
+      lastFingerState = nowFinger;
+
+      if (currentSession) {
+        for (var i = 0; i < pulseHistory.length; i++) {
+          if (pulseHistory[i].time > lastCapturedTime) {
+            currentSession.entries.push({ time: pulseHistory[i].time, value: pulseHistory[i].value });
+            lastCapturedTime = pulseHistory[i].time;
+          }
+        }
+        drawSession(currentSession, true);
+
+        var liveBpm = smoothedHeartRate;
+        if (liveBpm && isFinite(liveBpm)) {
+          currentSession.metaEl.querySelector('.pls-bpm').textContent = liveBpm.toFixed(0);
+          if (bpmLive) bpmLive.textContent = liveBpm.toFixed(0) + ' bpm';
+        }
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }());
+  </script>
+<!--  -->
+
+  <!-- theme toggle + about panel -->
+  <script>
+  (function () {
+    'use strict';
+
+    var html      = document.documentElement;
+    var btnTheme  = document.getElementById('btn-theme');
+    var btnAbout  = document.getElementById('btn-about');
+    var about     = document.getElementById('about-panel');
+    var btnBack   = document.getElementById('btn-back');
+    var btnCamera = document.getElementById('btn-camera');
+    var camLabel  = document.getElementById('btn-camera-label');
+    var iconOn    = document.getElementById('camera-icon-on');
+    var iconOff   = document.getElementById('camera-icon-off');
+    var vidEl     = document.getElementById('videoElement');
+    var cameraOn  = true;
+
+    function stopStream() {
+      if (vidEl.srcObject) {
+        vidEl.srcObject.getTracks().forEach(function (tr) { tr.stop(); });
+        vidEl.srcObject = null;
+      }
+    }
+
+    function restartStream() {
+      // heartcam.js's processFrame loop checks videoWidth === 0 each frame,
+      // so it will resume automatically once srcObject is live again.
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+        .then(function (stream) { vidEl.srcObject = stream; vidEl.play(); })
+        .catch(function () {
+          return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(function (stream) { vidEl.srcObject = stream; vidEl.play(); });
+        })
+        .catch(function (err) {
+          var msgEl = document.getElementById('message');
+          if (msgEl) msgEl.textContent = 'Camera error: ' + err.name;
+          setCameraState(false);
+        });
+    }
+
+    function setCameraState(on) {
+      cameraOn = on;
+      camLabel.textContent = on ? 'camera on' : 'camera off';
+      btnCamera.setAttribute('aria-label', on ? 'turn camera off' : 'turn camera on');
+      iconOn.hidden  = !on;
+      iconOff.hidden =  on;
+      if (!on) { stopStream(); } else { restartStream(); }
+    }
+
+    setCameraState(true);
+
+    btnCamera.addEventListener('click', function () { setCameraState(!cameraOn); });
+
+    function applyTheme(t) {
+      html.dataset.theme = t;
+      var next = t === 'dark' ? 'light' : 'dark';
+      btnTheme.textContent = next;
+      btnTheme.setAttribute('aria-label', 'switch to ' + next + ' mode');
+      localStorage.setItem('heartcap-theme', t);
+    }
+
+    applyTheme(localStorage.getItem('heartcap-theme') || 'dark');
+
+    btnTheme.addEventListener('click', function () {
+      applyTheme(html.dataset.theme === 'dark' ? 'light' : 'dark');
+    });
+
+    btnAbout.addEventListener('click', function () { about.hidden = false; btnBack.focus(); });
+    btnBack.addEventListener('click',  function () { about.hidden = true;  btnAbout.focus(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !about.hidden) { about.hidden = true; btnAbout.focus(); }
+    });
+  }());
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>breathCAPTCHA</title>
+  <script>var t=localStorage.getItem('breathcap-theme');if(t)document.documentElement.dataset.theme=t;var r=+localStorage.getItem('breathcap-rot')||0;if(r)document.body.dataset.rot=r;</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    [hidden] { display: none !important; }
+
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
+    /* ── custom properties ── */
+
+    :root {
+      --bg:         black;
+      --surface:    #0e0e0e;
+      --muted:      #959595;
+      --fg:         white;
+      --border:     rgba(255,255,255,0.20);
+      --btn-fg:     white;
+      --btn-bg:     #202020;
+      --overlay-bg: rgba(0,0,0,0.60);
+      --focus-ring: rgba(0,230,118,0.7);
+      --breath:     #00e676;
+      --warm:       #ff8f00;
+      --fail:       #ff3d00;
+    }
+
+    :root[data-theme="light"] {
+      --bg:         white;
+      --surface:    #efefed;
+      --muted:      #595959;
+      --fg:         #1a1a1a;
+      --border:     rgba(0,0,0,0.12);
+      --btn-fg:     #1a1a1a;
+      --btn-bg:     #e8e8e6;
+      --overlay-bg: rgba(247,247,245,0.94);
+      --focus-ring: rgba(0,160,80,0.75);
+      --breath:     #00963f;
+      --warm:       #c46800;
+      --fail:       #c62800;
+    }
+
+    :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+
+    /* ── base ── */
+
+    html, body { width: 100%; height: 100%; background: var(--bg); color: var(--fg); font-family: serif; }
+
+    a, a:visited { color: var(--fg); text-decoration: underline; }
+    a:hover { color: var(--muted); text-decoration: none; }
+
+    /* ── overlay (fullscreen centered panel) ── */
+
+    .overlay {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: var(--bg); color: var(--fg);
+      gap: 1.6rem; padding: 2rem; text-align: center; z-index: 40;
+    }
+
+    /* ── app shell ── */
+
+    #app { display: flex; flex-direction: column; height: 100vh; width: 100%; }
+
+    /* ── topbar ── */
+
+    #topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 min(10em, 5vw); height: 38px; flex-shrink: 0;
+      background: var(--btn-bg); border-bottom: 1px solid var(--border);
+      position: relative; z-index: 50;
+    }
+
+    #topbar-left {
+      display: flex; align-items: center; gap: 0.8rem; flex: 1;
+      color: var(--muted); font-family: sans-serif; font-size: 0.8rem;
+    }
+
+    #topbar-right {
+      display: flex; align-items: center; gap: 0.6rem; flex: 1; justify-content: flex-end;
+    }
+
+    /* ── camera toggle ── */
+
+    #btn-camera { display: flex; align-items: center; }
+    #btn-camera .camera-icon { display: none; }
+
+    @media (max-width: 540px) {
+      #topbar-title              { display: none; }
+      #btn-camera-label          { display: none; }
+      #btn-camera .camera-icon:not([hidden]) { display: block; }
+    }
+
+    #topbar button {
+      padding: 0; border: none; background: none; color: inherit;
+      font-family: serif; font-size: inherit; cursor: pointer; transition: opacity 0.15s;
+    }
+    #topbar button:hover  { opacity: 0.5; }
+    #topbar button:active { opacity: 0.3; }
+
+    /* ── main ── */
+
+    #main {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 1.1rem; padding: 1.2rem 1rem;
+      overflow: hidden;
+    }
+
+    /* ── prompt / status ── */
+
+    #prompt-overlay { text-align: center; pointer-events: none; }
+
+    #status {
+      display: block;
+      font-size: clamp(0.9em, 2.8vw, 1.4em);
+      transition: color 0.3s; min-height: 1.3em;
+    }
+    #status.highlight { color: var(--breath); }
+    #status.success   { color: var(--breath); }
+    #status.muted     { color: var(--muted); }
+
+    /* ── webcam preview ── */
+
+    #cam-wrap {
+      position: relative; width: 240px; height: 180px;
+      border: 1px solid var(--border); overflow: hidden;
+      background: var(--surface); display: none;
+    }
+    #cam-wrap.active { display: block; }
+
+    #video {
+      width: 100%; height: 100%;
+      object-fit: cover; transform: scaleX(-1); display: block;
+    }
+
+    /* breath state ring */
+    #cam-ring {
+      position: absolute; inset: 0;
+      border: 3px solid transparent;
+      transition: border-color 0.3s; pointer-events: none;
+    }
+    #cam-ring.listening { border-color: var(--warm); }
+    #cam-ring.breath    { border-color: var(--breath); }
+    #cam-ring.verified  { border-color: var(--breath); }
+
+    /* ── HF ratio bar ── */
+
+    #hf-wrap { width: 240px; display: none; flex-direction: column; gap: 6px; }
+    #hf-wrap.active { display: flex; }
+
+    #hf-label {
+      font-size: 0.72rem; color: var(--muted); font-family: monospace;
+      display: flex; justify-content: space-between;
+    }
+
+    #hf-track {
+      width: 100%; height: 6px; background: var(--surface);
+      border: 1px solid var(--border); overflow: hidden;
+    }
+
+    #hf-fill {
+      height: 100%; width: 0%;
+      background: var(--warm);
+      transition: width 0.08s linear, background 0.3s;
+    }
+    #hf-fill.drop { background: var(--breath); }
+
+    /* baseline tick */
+    #hf-tick-wrap { position: relative; height: 0; }
+    #hf-tick {
+      position: absolute; top: -9px; width: 2px; height: 12px;
+      background: var(--border); border-radius: 1px; transform: translateX(-50%);
+    }
+
+    /* ── recovery bar (visible in BREATH state) ── */
+
+    #recovery-wrap { width: 240px; display: none; flex-direction: column; gap: 6px; }
+    #recovery-wrap.active { display: flex; }
+
+    #recovery-label {
+      font-size: 0.72rem; color: var(--muted); font-family: monospace;
+      display: flex; justify-content: space-between;
+    }
+
+    #recovery-track {
+      width: 100%; height: 6px; background: var(--surface);
+      border: 1px solid var(--border); overflow: hidden;
+    }
+
+    #recovery-fill {
+      height: 100%; width: 0%;
+      background: var(--breath);
+      transition: width 0.1s linear;
+    }
+
+    /* ── verify button ── */
+
+    #btn-verify {
+      padding: 7px 26px; font-size: 1em;
+      color: var(--btn-fg); background: var(--btn-bg);
+      border: 1px solid var(--border);
+      cursor: pointer; transition: opacity 0.2s;
+      font-family: sans-serif;
+    }
+    #btn-verify:hover:not(:disabled) { opacity: 0.5; }
+    #btn-verify:disabled { opacity: 0.22; cursor: default; pointer-events: none; }
+
+    /* ── verified badge ── */
+
+    #badge { display: none; flex-direction: column; align-items: center; gap: 8px; }
+    #badge.active { display: flex; }
+
+    #badge-icon { font-size: 2.2em; animation: pop 0.35s ease-out; }
+    #badge-text {
+      font-family: sans-serif; font-size: 0.72rem;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--breath);
+    }
+
+    @keyframes pop {
+      0%   { transform: scale(0.5); opacity: 0; }
+      70%  { transform: scale(1.15); }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+
+    /* ── FFT display (hidden — replaced by slit scan) ── */
+
+    #fft-wrap { display: none; }   /* never shown while slit scan is active */
+    #fft-canvas { width: 192px; height: 192px; image-rendering: pixelated; }
+
+    /* ── Slit scan ── */
+
+    #slit-wrap { display: none; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+    #slit-wrap.active { display: flex; }
+
+    /* Horizontally scrollable strip — newest columns always at the right edge */
+    #slit-scroll {
+      width: 100%;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      border: 1px solid var(--border);
+    }
+
+    /* Canvas grows rightward; CSS height is fixed, width follows canvas.width */
+    #slit-canvas {
+      display: block;
+      height: 180px;
+    }
+
+    #slit-label {
+      font-family: monospace; font-size: 0.68rem; color: var(--muted);
+      text-align: center; line-height: 1.5;
+    }
+
+    #btn-slit-download {
+      font-family: sans-serif; font-size: 0.8rem;
+      padding: 4px 16px; letter-spacing: 0.04em;
+    }
+
+    /* ── Page rotation (counterclockwise 90° steps) ── */
+
+    body[data-rot="1"] { transform: rotate(-90deg);  transform-origin: center center; }
+    body[data-rot="2"] { transform: rotate(-180deg); transform-origin: center center; }
+    body[data-rot="3"] { transform: rotate(-270deg); transform-origin: center center; }
+
+    /* ── debug readout ── */
+
+    #debug { font-family: monospace; font-size: 0.68rem; color: var(--muted); text-align: center; display: none; }
+    body.debug-mode #debug { display: block; }
+
+    /* ── global button ── */
+
+    button {
+      background: var(--btn-bg); border: 1px solid var(--border);
+      color: var(--btn-fg); font-family: sans-serif; padding: 4px 16px;
+      cursor: pointer; transition: opacity 0.12s;
+    }
+    button:hover  { opacity: 0.5; }
+    button:active { opacity: 0.25; }
+    button:disabled { opacity: 0.22; cursor: default; pointer-events: none; }
+
+    /* ── about panel ── */
+
+    #about-panel { z-index: 55; }
+    #about-panel p { max-width: 480px; font-size: clamp(0.85rem,2vw,1rem); line-height: 1.4; }
+    #btn-back { margin-top: 0.5rem; }
+
+    /* ── permission screen ── */
+
+    #permission-screen { z-index: 40; }
+    #permission-screen button { padding: 7px 26px; }
+  </style>
+</head>
+<body>
+
+  <div id="announce" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
+  <div id="app">
+
+    <header id="topbar">
+      <span id="topbar-left">
+        <span id="state-indicator" aria-live="polite" aria-atomic="true"></span>
+      </span>
+      <span id="topbar-title" aria-hidden="true">breathCAPTCHA</span>
+      <span id="topbar-right">
+        <button id="btn-camera" aria-label="turn camera on">
+          <span id="btn-camera-label">camera off</span>
+          <svg id="camera-icon-on" class="camera-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M8.73178 3.35982C8.92177 3.13182 9.20322 3 9.5 3H14.5C14.7968 3 15.0782 3.13182 15.2682 3.35982L17.4684 6H20C20.7957 6 21.5587 6.31607 22.1213 6.87868C22.6839 7.44129 23 8.20435 23 9V18C23 18.7957 22.6839 19.5587 22.1213 20.1213C21.5587 20.6839 20.7957 21 20 21H4C3.20435 21 2.44129 20.6839 1.87868 20.1213C1.31607 19.5587 1 18.7956 1 18V9C1 8.20435 1.31607 7.44129 1.87868 6.87868C2.44129 6.31607 3.20435 6 4 6H6.53162L8.73178 3.35982ZM9.96837 5L7.76822 7.64018C7.57823 7.86818 7.29678 8 7 8H4C3.73478 8 3.48043 8.10536 3.29289 8.29289C3.10536 8.48043 3 8.73478 3 9V18C3 18.2652 3.10536 18.5196 3.29289 18.7071C3.48043 18.8946 3.73478 19 4 19H20C20.2652 19 20.5196 18.8946 20.7071 18.7071C20.8946 18.5196 21 18.2652 21 18V9C21 8.73478 20.8946 8.48043 20.7071 8.29289C20.5196 8.10536 20.2652 8 20 8H17C16.7032 8 16.4218 7.86818 16.2318 7.64018L14.0316 5H9.96837ZM12 11C10.8954 11 10 11.8954 10 13C10 14.1046 10.8954 15 12 15C13.1046 15 14 14.1046 14 13C14 11.8954 13.1046 11 12 11ZM8 13C8 10.7909 9.79086 9 12 9C14.2091 9 16 10.7909 16 13C16 15.2091 14.2091 17 12 17C9.79086 17 8 15.2091 8 13Z"/>
+          </svg>
+          <svg id="camera-icon-off" class="camera-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M1.29289 1.29289C1.68342 0.902369 2.31658 0.902369 2.70711 1.29289L22.7071 21.2929C23.0976 21.6834 23.0976 22.3166 22.7071 22.7071C22.3166 23.0976 21.6834 23.0976 21.2929 22.7071L19.5858 21H4C3.20435 21 2.44129 20.6839 1.87868 20.1213C1.31607 19.5587 1 18.7957 1 18V9C1 8.20435 1.31607 7.44129 1.87868 6.87868C2.44129 6.31607 3.20435 6 4 6H4.58579L1.29289 2.70711C0.902369 2.31658 0.902369 1.68342 1.29289 1.29289ZM6.58579 8H4C3.73478 8 3.48043 8.10536 3.29289 8.29289C3.10536 8.48043 3 8.73478 3 9V18C3 18.2652 3.10536 18.5196 3.29289 18.7071C3.48043 18.8946 3.73478 19 4 19H17.5858L14.6178 16.032C14.3011 16.3172 13.9404 16.5504 13.5489 16.7222C13.0593 16.937 12.5316 17.0516 11.997 17.059C11.4624 17.0664 10.9318 16.9666 10.4364 16.7654C9.94104 16.5643 9.49103 16.2659 9.11298 15.8878C8.73492 15.5097 8.4365 15.0597 8.23533 14.5644C8.03417 14.069 7.93436 13.5383 7.94179 13.0038C7.94923 12.4692 8.06376 11.9415 8.27862 11.4519C8.45043 11.0604 8.6836 10.6997 8.96874 10.3829L6.58579 8ZM10.3868 11.8011C10.275 11.9393 10.1818 12.0921 10.11 12.2556C10.0026 12.5004 9.94532 12.7643 9.9416 13.0316C9.93788 13.2989 9.98779 13.5642 10.0884 13.8119C10.189 14.0596 10.3382 14.2846 10.5272 14.4736C10.7162 14.6626 10.9412 14.8118 11.1889 14.9124C11.4366 15.013 11.7019 15.0629 11.9692 15.0592C12.2365 15.0555 12.5004 14.9982 12.7451 14.8908C12.9087 14.819 13.0615 14.7258 13.1997 14.6139L10.3868 11.8011ZM8.5 4C8.5 3.44772 8.94772 3 9.5 3H14.5C14.7968 3 15.0782 3.13182 15.2682 3.35982L17.4684 6H20C20.7957 6 21.5587 6.31607 22.1213 6.87868C22.6839 7.44129 23 8.20435 23 9V16.5C23 17.0523 22.5523 17.5 22 17.5C21.4477 17.5 21 17.0523 21 16.5V9C21 8.73478 20.8946 8.48043 20.7071 8.29289C20.5196 8.10536 20.2652 8 20 8H17C16.7032 8 16.4218 7.86818 16.2318 7.64018L14.0316 5H9.5C8.94772 5 8.5 4.55228 8.5 4Z"/>
+          </svg>
+        </button>
+        <button id="btn-flip" aria-label="rotate page 90° counterclockwise">rotate</button>
+        <button id="btn-theme" aria-label="switch to light mode">light</button>
+        <button id="btn-about" aria-label="open about">about</button>
+      </span>
+    </header>
+
+    <main id="main">
+
+      <div id="prompt-overlay">
+        <p id="status" class="muted" aria-live="polite" aria-atomic="true">Press the button to begin</p>
+      </div>
+
+      <div id="cam-wrap">
+        <video id="video" autoplay playsinline muted></video>
+        <div id="cam-ring"></div>
+      </div>
+
+      <div id="hf-wrap">
+        <div id="hf-label">
+          <span>HF energy</span>
+          <span id="hf-val">—</span>
+        </div>
+        <div id="hf-track">
+          <div id="hf-fill"></div>
+        </div>
+        <div id="hf-tick-wrap">
+          <div id="hf-tick"></div>
+        </div>
+      </div>
+
+      <div id="recovery-wrap">
+        <div id="recovery-label">
+          <span>clearance analysis</span>
+          <span id="recovery-pct">waiting for fog…</span>
+        </div>
+        <div id="recovery-track">
+          <div id="recovery-fill"></div>
+        </div>
+      </div>
+
+      <button id="btn-verify">verify I'm human</button>
+
+      <!-- fft-wrap kept in DOM but never shown; slit scan replaces it -->
+      <div id="fft-wrap" aria-hidden="true">
+        <canvas id="fft-canvas" width="64" height="64"></canvas>
+      </div>
+
+      <div id="slit-wrap" aria-label="slit scan of webcam over time">
+        <div id="slit-scroll">
+          <canvas id="slit-canvas" aria-hidden="true"></canvas>
+        </div>
+        <button id="btn-slit-download" hidden>download receipt</button>
+        <p id="slit-label">slit scan — time →<br>center column of webcam, newest right</p>
+      </div>
+
+      <div id="badge">
+        <div id="badge-icon">✓</div>
+        <div id="badge-text">breath verified</div>
+      </div>
+
+      <p id="debug"></p>
+
+    </main>
+  </div>
+
+  <!-- about panel -->
+  <div id="about-panel" class="overlay" role="dialog" aria-modal="true"
+       aria-labelledby="about-heading" hidden>
+    <h2 id="about-heading" class="sr-only">About breathCAPTCHA</h2>
+    <p>breathCAPTCHA verifies human presence by detecting a breath on your webcam lens. A brief fog pattern caused by exhaling alters the high-frequency energy of the camera image.</p>
+    <p>All analysis runs locally. The system measures spectral changes; it does not record or store video.</p>
+    <button id="btn-back" aria-label="close about">close</button>
+  </div>
+
+  <!-- breathcaptcha core module -->
+  <script src="breathcaptcha.js"></script>
+
+  <!-- UI glue -->
+  <script>
+  'use strict';
+
+  // ── DOM refs ─────────────────────────────────────────────────────────────────
+  const videoEl      = document.getElementById('video');
+  const camWrap      = document.getElementById('cam-wrap');
+  const camRing      = document.getElementById('cam-ring');
+  const statusEl     = document.getElementById('status');
+  const stateInd     = document.getElementById('state-indicator');
+  const hfWrap       = document.getElementById('hf-wrap');
+  const hfFill       = document.getElementById('hf-fill');
+  const hfVal        = document.getElementById('hf-val');
+  const hfTick       = document.getElementById('hf-tick');
+  const btnVerify    = document.getElementById('btn-verify');
+  const badge        = document.getElementById('badge');
+  const debugEl      = document.getElementById('debug');
+  const fftWrap      = document.getElementById('fft-wrap');   // kept, never shown
+  const fftCanvas    = document.getElementById('fft-canvas');
+  const fftCtx       = fftCanvas.getContext('2d');
+  const slitWrap     = document.getElementById('slit-wrap');
+  const slitCanvas   = document.getElementById('slit-canvas');
+  const recoveryWrap = document.getElementById('recovery-wrap');
+  const recoveryFill = document.getElementById('recovery-fill');
+  const recoveryPct  = document.getElementById('recovery-pct');
+
+  // ── FFT renderer (runs into hidden canvas; kept for breathcaptcha.js) ────────
+  const FFT_N = 64, HF_LO = 16, HF_HI = 48;
+  const fftImg = fftCtx.createImageData(FFT_N, FFT_N);
+
+  function renderFFT(mag) {
+    const d = fftImg.data;
+    for (let r = 0; r < FFT_N; r++) {
+      for (let c = 0; c < FFT_N; c++) {
+        const i  = r * FFT_N + c;
+        const v  = Math.floor(mag[i] * 255);
+        const px = i * 4;
+        const inHF = (r < HF_LO || r >= HF_HI) && (c < HF_LO || c >= HF_HI);
+        if (inHF) {
+          d[px]     = Math.floor(v * 0.12);
+          d[px + 1] = Math.floor(v * 0.55 + 80  * (1 - v / 255));
+          d[px + 2] = Math.floor(v * 0.55 + 172 * (1 - v / 255));
+        } else {
+          d[px] = d[px + 1] = d[px + 2] = v;
+        }
+        d[px + 3] = 255;
+      }
+    }
+    fftCtx.putImageData(fftImg, 0, 0);
+  }
+
+  // ── Slit scan ─────────────────────────────────────────────────────────────────
+  // Canvas grows rightward — one pixel column per captured frame, never overwritten.
+  // Chunked allocation avoids clearing the canvas on every resize.
+
+  const SLIT_H     = 180;    // fixed pixel height
+  const SLIT_CHUNK = 900;    // columns allocated per chunk (~30 s at 30 fps)
+
+  slitCanvas.height = SLIT_H;
+  slitCanvas.width  = SLIT_CHUNK;   // initial allocation
+
+  const slitCtx    = slitCanvas.getContext('2d', { willReadFrequently: false });
+  const slitScroll = document.getElementById('slit-scroll');
+
+  let slitPos    = 0;      // next column to write
+  let slitFrozen = false;
+
+  // Per-column metadata for the future hover / fog-frame feature.
+  // Each entry: { ts, state, hf, base }
+  const slitMeta = [];
+
+  // Latest values from onStatus, sampled by the rAF tick.
+  let _slitState = null, _slitHf = 0, _slitBase = 0;
+
+  // Expand canvas rightward by SLIT_CHUNK columns, preserving existing pixels.
+  function slitExpand() {
+    const tmp = document.createElement('canvas');
+    tmp.width  = slitCanvas.width;
+    tmp.height = SLIT_H;
+    tmp.getContext('2d').drawImage(slitCanvas, 0, 0);
+    slitCanvas.width += SLIT_CHUNK;   // resize clears the canvas
+    slitCtx.drawImage(tmp, 0, 0);     // restore saved content
+  }
+
+  const btnSlitDownload = document.getElementById('btn-slit-download');
+  const slitLabel       = document.getElementById('slit-label');
+
+  btnSlitDownload.addEventListener('click', function () {
+    // Export only the filled portion (0 … slitPos columns).
+    const crop = document.createElement('canvas');
+    crop.width  = slitPos;
+    crop.height = SLIT_H;
+    crop.getContext('2d').drawImage(slitCanvas, 0, 0, slitPos, SLIT_H, 0, 0, slitPos, SLIT_H);
+    crop.toBlob(function (blob) {
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      const ts  = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -1);
+      a.href     = url;
+      a.download = 'breathcap-receipt-' + ts + '.png';
+      a.click();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  });
+
+  function slitTick() {
+    requestAnimationFrame(slitTick);
+    if (slitFrozen) return;
+    if (!videoEl.srcObject ||
+        videoEl.readyState < videoEl.HAVE_CURRENT_DATA ||
+        !videoEl.videoWidth) return;
+
+    // Grow buffer if the current chunk is full.
+    if (slitPos >= slitCanvas.width) slitExpand();
+
+    const vW = videoEl.videoWidth;
+    const vH = videoEl.videoHeight;
+
+    // Append center vertical strip of video as the next column.
+    slitCtx.drawImage(
+      videoEl,
+      Math.floor(vW / 2), 0, 1, vH,   // src: 1 px wide center column, full height
+      slitPos,             0, 1, SLIT_H // dst: next column, scaled to canvas height
+    );
+
+    slitMeta.push({ ts: Date.now(), state: _slitState, hf: _slitHf, base: _slitBase });
+    slitPos++;
+
+    // Pin scroll to the newest (rightmost) column.
+    slitScroll.scrollLeft = slitScroll.scrollWidth;
+  }
+
+  requestAnimationFrame(slitTick);
+
+  // Called at the start of each new verification session.
+  window.clearSlitScan = function () {
+    slitFrozen       = false;
+    slitPos          = 0;
+    slitCanvas.width = SLIT_CHUNK;   // reset allocation (also clears canvas)
+    slitMeta.length  = 0;
+    btnSlitDownload.hidden = true;
+    slitLabel.innerHTML    = 'slit scan — time →<br>center column of webcam, newest right';
+  };
+
+  if (location.search.includes('debug')) document.body.classList.add('debug-mode');
+
+  // ── State → UI ────────────────────────────────────────────────────────────────
+  const S = BreathCaptcha.STATES;
+
+  function setStatus(text, cls = '') {
+    statusEl.textContent = text;
+    statusEl.className   = cls;
+  }
+
+  function applyState(state, progress = 0, hf = 0, base = 0) {
+    camRing.className = state;
+    const detecting = state === S.BASELINE || state === S.LISTENING || state === S.BREATH;
+    slitWrap.classList.toggle('active', detecting);   // slit scan replaces fft
+    recoveryWrap.classList.toggle('active', state === S.BREATH);
+
+    // topbar indicator
+    stateInd.textContent = state !== S.VERIFIED ? state : '';
+
+    switch (state) {
+      case S.BASELINE:
+        setStatus('calibrating — hold still…', 'muted');
+        break;
+      case S.LISTENING:
+        setStatus('breathe out onto your camera to fog it up', 'highlight');
+        break;
+      case S.BREATH: {
+        const fogCleared = base > 0 && hf >= base * 0.90;
+        if (fogCleared) {
+          setStatus('fog clearing — analyzing…', 'highlight');
+          recoveryFill.style.width = (progress * 100).toFixed(1) + '%';
+          recoveryPct.textContent  = Math.round(progress * 100) + '%';
+        } else {
+          setStatus('fog detected — let it clear naturally', 'highlight');
+          recoveryFill.style.width = '0%';
+          recoveryPct.textContent  = 'waiting for fog…';
+        }
+        break;
+      }
+      case S.VERIFIED:
+        setStatus('');
+        hfWrap.classList.remove('active');
+        recoveryWrap.classList.remove('active');
+        badge.classList.add('active');
+        btnVerify.disabled = false;
+        btnVerify.textContent = 'try again';
+        // Freeze and surface the slit scan as a receipt
+        slitFrozen = true;
+        slitWrap.classList.add('active');
+        btnSlitDownload.hidden = false;
+        slitLabel.textContent  = 'session receipt';
+        break;
+    }
+  }
+
+  // ── HF bar ───────────────────────────────────────────────────────────────────
+  const BAR_MAX = 0.5;
+
+  function updateBar(ratio, baseline) {
+    const pct     = Math.min(ratio    / BAR_MAX * 100, 100);
+    const basePct = Math.min(baseline / BAR_MAX * 100, 100);
+    hfFill.style.width = pct + '%';
+    hfTick.style.left  = basePct + '%';
+
+    const isDrop = baseline > 0 && (baseline - ratio) / baseline >= 0.15;
+    hfFill.classList.toggle('drop', isDrop);
+    hfVal.textContent = ratio.toFixed(3);
+
+    if (document.body.classList.contains('debug-mode')) {
+      debugEl.textContent =
+        `state=${BreathCaptcha.state}  hf=${ratio.toFixed(4)}  base=${baseline.toFixed(4)}`;
+    }
+  }
+
+  // ── Camera ────────────────────────────────────────────────────────────────────
+  async function startCamera() {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    videoEl.srcObject = stream;
+    await new Promise(res => videoEl.addEventListener('loadedmetadata', res, { once: true }));
+  }
+
+  // ── Verify button ─────────────────────────────────────────────────────────────
+  btnVerify.addEventListener('click', async () => {
+    btnVerify.disabled = true;
+    badge.classList.remove('active');
+
+    if (!window.breathInited) {
+      // First run: acquire stream and initialise the module
+      setStatus('requesting camera…', 'muted');
+      try {
+        await startCamera();
+      } catch (err) {
+        setStatus('camera access denied', '');
+        btnVerify.disabled = false;
+        return;
+      }
+      BreathCaptcha.init({
+        video:      videoEl,
+        onVerified: () => applyState(S.VERIFIED),
+        onStatus:   (state, hf, base, fftMag, progress) => {
+          _slitState = state; _slitHf = hf; _slitBase = base;  // feed slit metadata
+          applyState(state, progress, hf, base);
+          updateBar(hf, base);
+          renderFFT(fftMag);   // still runs; output goes to hidden canvas
+        },
+      });
+      window.breathInited = true;
+    } else if (!videoEl.srcObject) {
+      // Camera was stopped via toggle: re-acquire stream, then reset
+      setStatus('requesting camera…', 'muted');
+      try {
+        await startCamera();
+      } catch (err) {
+        setStatus('camera access denied', '');
+        btnVerify.disabled = false;
+        return;
+      }
+      BreathCaptcha.reset();
+    } else {
+      // Camera already live: just reset state
+      BreathCaptcha.reset();
+    }
+
+    camWrap.classList.add('active');
+    hfWrap.classList.add('active');
+    if (typeof setCameraState === 'function') setCameraState(true);
+    window.clearSlitScan();   // fresh scan for each session
+    BreathCaptcha.start();
+  });
+  </script>
+
+  <!-- theme toggle + about panel -->
+  <script>
+  (function () {
+    'use strict';
+
+    var html      = document.documentElement;
+    var btnFlip   = document.getElementById('btn-flip');
+    var btnTheme  = document.getElementById('btn-theme');
+    var btnAbout  = document.getElementById('btn-about');
+    var about     = document.getElementById('about-panel');
+    var btnBack   = document.getElementById('btn-back');
+
+    // ── Rotation (counterclockwise 90° per click, cycles 0→1→2→3→0) ─────────
+    var currentRot = +localStorage.getItem('breathcap-rot') || 0;
+
+    function applyRot(n) {
+      currentRot = ((n % 4) + 4) % 4;
+      if (currentRot === 0) delete document.body.dataset.rot;
+      else document.body.dataset.rot = currentRot;
+      localStorage.setItem('breathcap-rot', currentRot);
+    }
+
+    applyRot(currentRot);
+
+    btnFlip.addEventListener('click', function () { applyRot(currentRot + 1); });
+    var btnCamera = document.getElementById('btn-camera');
+    var camLabel  = document.getElementById('btn-camera-label');
+    var iconOn    = document.getElementById('camera-icon-on');
+    var iconOff   = document.getElementById('camera-icon-off');
+
+    // Camera starts off — the verify button is the entry point for first use
+    var cameraActive = false;
+    var vid = document.getElementById('video');
+
+    window.setCameraState = function (on) {
+      cameraActive = on;
+      camLabel.textContent = on ? 'camera on' : 'camera off';
+      btnCamera.setAttribute('aria-label', on ? 'turn camera off' : 'turn camera on');
+      iconOn.hidden  = !on;
+      iconOff.hidden =  on;
+
+      if (!on) {
+        // Stop stream so OS indicator light goes off
+        if (vid.srcObject) {
+          vid.srcObject.getTracks().forEach(function (tr) { tr.stop(); });
+          vid.srcObject = null;
+        }
+        document.getElementById('cam-wrap').classList.remove('active');
+        document.getElementById('hf-wrap').classList.remove('active');
+      }
+      // toggle-on is handled by the caller (verify button or click handler below)
+    };
+
+    window.breathInited = false;
+    setCameraState(false);
+
+    btnCamera.addEventListener('click', function () {
+      if (cameraActive) {
+        setCameraState(false);
+      } else if (window.breathInited) {
+        // Re-acquire stream directly — no need to re-init BreathCaptcha
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+          .then(function (stream) {
+            vid.srcObject = stream;
+            return new Promise(function (res) {
+              vid.addEventListener('loadedmetadata', res, { once: true });
+            });
+          })
+          .then(function () {
+            document.getElementById('cam-wrap').classList.add('active');
+            document.getElementById('hf-wrap').classList.add('active');
+            cameraActive = true;
+            camLabel.textContent = 'camera on';
+            btnCamera.setAttribute('aria-label', 'turn camera off');
+            iconOn.hidden  = false;
+            iconOff.hidden = true;
+            BreathCaptcha.reset();
+            BreathCaptcha.start();
+          })
+          .catch(function (err) {
+            document.getElementById('status').textContent = 'camera error: ' + err.name;
+          });
+      }
+      // else: camera not yet started — user must click verify button first
+    });
+
+    function applyTheme(t) {
+      html.dataset.theme = t;
+      var next = t === 'dark' ? 'light' : 'dark';
+      btnTheme.textContent = next;
+      btnTheme.setAttribute('aria-label', 'switch to ' + next + ' mode');
+      localStorage.setItem('breathcap-theme', t);
+    }
+
+    applyTheme(localStorage.getItem('breathcap-theme') || 'dark');
+
+    btnTheme.addEventListener('click', function () {
+      applyTheme(html.dataset.theme === 'dark' ? 'light' : 'dark');
+    });
+
+    btnAbout.addEventListener('click', function () { about.hidden = false; btnBack.focus(); });
+    btnBack.addEventListener('click',  function () { about.hidden = true;  btnAbout.focus(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !about.hidden) { about.hidden = true; btnAbout.focus(); }
+    });
+  }());
+  </script>
+
+</body>
+</html>
